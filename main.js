@@ -13,12 +13,19 @@
     roomUrl: "",
     role: "",
     myColor: "",
+    desiredHostColor: BLACK,
+    currentHostColor: "",
+    matchConfigured: false,
     roomData: null,
     roomUnsubscribe: null,
     fallbackUnsubscribe: null,
     pendingPeerTarget: "",
     p2pTimer: null,
     transportMode: "matchmaking",
+    rematch: {
+      outgoing: null,
+      incoming: null
+    },
     initializedGame: false,
     game: createFreshGame(),
     elements: {}
@@ -55,6 +62,18 @@
     app.elements.whiteScore = document.getElementById("whiteScore");
     app.elements.myAvatar = document.getElementById("myAvatar");
     app.elements.opponentAvatar = document.getElementById("opponentAvatar");
+    app.elements.hostSetupPanel = document.getElementById("hostSetupPanel");
+    app.elements.hostBlackButton = document.getElementById("hostBlackButton");
+    app.elements.hostWhiteButton = document.getElementById("hostWhiteButton");
+    app.elements.controlHint = document.getElementById("controlHint");
+    app.elements.rematchPanel = document.getElementById("rematchPanel");
+    app.elements.rematchActions = document.getElementById("rematchActions");
+    app.elements.rematchDecision = document.getElementById("rematchDecision");
+    app.elements.sameRematchButton = document.getElementById("sameRematchButton");
+    app.elements.swapRematchButton = document.getElementById("swapRematchButton");
+    app.elements.acceptRematchButton = document.getElementById("acceptRematchButton");
+    app.elements.rejectRematchButton = document.getElementById("rejectRematchButton");
+    app.elements.rematchHint = document.getElementById("rematchHint");
   }
 
   function setText(element, value) {
@@ -80,6 +99,18 @@
     setText(app.elements.modeStatus, value);
   }
 
+  function setHidden(element, shouldHide) {
+    if (!element) {
+      return;
+    }
+
+    if (shouldHide) {
+      element.classList.add("hidden");
+    } else {
+      element.classList.remove("hidden");
+    }
+  }
+
   function getInitial(name) {
     return (name || "?").charAt(0).toUpperCase();
   }
@@ -103,6 +134,10 @@
 
   function colorName(color) {
     return color === BLACK ? "黒" : "白";
+  }
+
+  function buttonColorLabel(color) {
+    return color === BLACK ? "ホストが黒" : "ホストが白";
   }
 
   function roleName(role) {
@@ -422,9 +457,76 @@
     renderBoard();
   }
 
+  function clearRematchState() {
+    app.rematch.outgoing = null;
+    app.rematch.incoming = null;
+  }
+
+  function hasPlayedMove() {
+    return !!app.game.lastMove || app.game.version > 0;
+  }
+
+  function updateHostSetupUI() {
+    var visible = app.role === "host" &&
+      app.transportMode !== "firestore" &&
+      (!app.matchConfigured || (!hasPlayedMove() && !app.game.winner));
+
+    setHidden(app.elements.hostSetupPanel, !visible);
+
+    if (!visible) {
+      return;
+    }
+
+    app.elements.hostBlackButton.classList.toggle("active", app.desiredHostColor === BLACK);
+    app.elements.hostWhiteButton.classList.toggle("active", app.desiredHostColor === WHITE);
+
+    if (!AppPeer.isConnected()) {
+      setText(app.elements.controlHint, "接続後にこの設定を相手へ同期します。");
+    } else if (!app.matchConfigured) {
+      setText(app.elements.controlHint, "接続済みです。この設定で対局を開始します。");
+    } else if (!hasPlayedMove()) {
+      setText(app.elements.controlHint, "初手前なら色設定を変更できます。");
+    } else {
+      setText(app.elements.controlHint, "対局中は色設定を変更できません。");
+    }
+  }
+
+  function updateRematchUI() {
+    var showPanel = app.game.winner && app.transportMode === "p2p" && AppPeer.isConnected();
+    var decisionText = "ゲーム終了後に同じルームで再戦できます。";
+
+    setHidden(app.elements.rematchPanel, !showPanel);
+    if (!showPanel) {
+      return;
+    }
+
+    setHidden(app.elements.rematchActions, !!app.rematch.incoming || !!app.rematch.outgoing);
+    setHidden(app.elements.rematchDecision, !app.rematch.incoming);
+
+    if (app.rematch.incoming) {
+      decisionText = app.rematch.incoming.swapColors ?
+        "相手が色を入れ替えて再戦を希望しています。" :
+        "相手が同じ色での再戦を希望しています。";
+    } else if (app.rematch.outgoing) {
+      decisionText = "再戦リクエストを送信しました。返答を待っています。";
+    }
+
+    setText(app.elements.rematchHint, decisionText);
+  }
+
   function updateRoleUI() {
+    var colorLabel = "未確定";
+
+    if (app.myColor) {
+      colorLabel = colorName(app.myColor);
+    } else if (app.role === "host") {
+      colorLabel = buttonColorLabel(app.desiredHostColor) + "予定";
+    }
+
     setText(app.elements.roleBadge, "役割: " + roleName(app.role));
-    setText(app.elements.colorBadge, "色: " + (app.myColor ? colorName(app.myColor) : "未確定"));
+    setText(app.elements.colorBadge, "色: " + colorLabel);
+    updateHostSetupUI();
+    updateRematchUI();
   }
 
   function updateIdentityUI() {
@@ -456,6 +558,46 @@
     }
 
     updateOpponentUI(opponentName, opponentPictureUrl);
+  }
+
+  function applyMatchSettings(hostColor, isRematch) {
+    app.currentHostColor = hostColor;
+    app.desiredHostColor = hostColor;
+    app.matchConfigured = true;
+    app.myColor = app.role === "host" ? hostColor : getOpponent(hostColor);
+    clearRematchState();
+    updateRoleUI();
+    resetGameState();
+    setMessage(isRematch ? "再戦を開始しました。黒が先手です。" : "対局を開始しました。黒が先手です。");
+  }
+
+  function broadcastMatchSettings(hostColor, isRematch) {
+    applyMatchSettings(hostColor, isRematch);
+    AppPeer.send({
+      type: "match_settings",
+      hostColor: hostColor,
+      isRematch: !!isRematch
+    });
+  }
+
+  function startRematch(swapColors) {
+    var baseHostColor = app.currentHostColor || app.desiredHostColor || BLACK;
+    var nextHostColor = swapColors ? getOpponent(baseHostColor) : baseHostColor;
+
+    if (!AppPeer.isConnected()) {
+      return;
+    }
+
+    try {
+      AppPeer.send({
+        type: "rematch_start",
+        hostColor: nextHostColor,
+        swapColors: !!swapColors
+      });
+      applyMatchSettings(nextHostColor, true);
+    } catch (error) {
+      activateFirestoreFallback("再戦開始メッセージの送信に失敗しました。 " + error.message);
+    }
   }
 
   function stopRoomSubscription() {
@@ -531,6 +673,7 @@
 
     setMessage(app.game.message);
     renderBoard();
+    updateRematchUI();
   }
 
   function activateFirestoreFallback(reason) {
@@ -570,10 +713,48 @@
       renderBoard();
     }
 
-    if (!app.game.message || app.game.message.indexOf("Firestore で行います") >= 0) {
-      setMessage("P2P 接続が確立されました。対局中の手番同期では Firestore を使いません。");
-    } else {
-      setMessage(app.game.message);
+    if (app.role === "host") {
+      try {
+        broadcastMatchSettings(app.desiredHostColor, false);
+      } catch (error) {
+        activateFirestoreFallback("初期設定の送信に失敗しました。 " + error.message);
+      }
+      return;
+    }
+
+    setMessage("P2P 接続が確立されました。ホストの開始設定を待っています。");
+    updateRoleUI();
+  }
+
+  function finalizeIncomingRematch() {
+    if (!app.rematch.incoming || app.role !== "host") {
+      return;
+    }
+
+    startRematch(!!app.rematch.incoming.swapColors);
+  }
+
+  function requestRematch(swapColors) {
+    if (!AppPeer.isConnected()) {
+      return;
+    }
+
+    app.rematch.outgoing = {
+      swapColors: !!swapColors
+    };
+    app.rematch.incoming = null;
+    updateRematchUI();
+
+    try {
+      AppPeer.send({
+        type: "rematch_request",
+        swapColors: !!swapColors
+      });
+      setMessage(swapColors ? "色を入れ替える再戦をリクエストしました。" : "同じ色での再戦をリクエストしました。");
+    } catch (error) {
+      clearRematchState();
+      updateRematchUI();
+      activateFirestoreFallback("再戦リクエストの送信に失敗しました。 " + error.message);
     }
   }
 
@@ -620,6 +801,7 @@
     moveMessage = resolveTurnAfterMove(color);
     setMessage(moveMessage);
     renderBoard();
+    updateRematchUI();
 
     if (app.transportMode === "firestore") {
       persistFallbackMove();
@@ -665,11 +847,51 @@
   }
 
   function handlePeerData(data) {
-    if (!data || data.type !== "move" || !data.position) {
+    if (!data || !data.type) {
       return;
     }
 
-    makeMove(Number(data.position.row), Number(data.position.col), data.color, "remote", Number(data.version));
+    if (data.type === "move" && data.position) {
+      makeMove(Number(data.position.row), Number(data.position.col), data.color, "remote", Number(data.version));
+      return;
+    }
+
+    if (data.type === "match_settings") {
+      applyMatchSettings(data.hostColor, !!data.isRematch);
+      return;
+    }
+
+    if (data.type === "rematch_request") {
+      app.rematch.incoming = {
+        swapColors: !!data.swapColors
+      };
+      app.rematch.outgoing = null;
+      updateRematchUI();
+      setMessage(data.swapColors ?
+        "相手が色を入れ替えて再戦したいようです。" :
+        "相手が同じ色で再戦したいようです。");
+      return;
+    }
+
+    if (data.type === "rematch_accept") {
+      if (app.role === "host" && (app.rematch.outgoing || app.rematch.incoming)) {
+        finalizeIncomingRematch();
+      } else {
+        setMessage("相手が再戦を承認しました。開始を待っています。");
+      }
+      return;
+    }
+
+    if (data.type === "rematch_reject") {
+      clearRematchState();
+      updateRematchUI();
+      setMessage("相手は再戦しませんでした。");
+      return;
+    }
+
+    if (data.type === "rematch_start") {
+      applyMatchSettings(data.hostColor, true);
+    }
   }
 
   function tryConnectToGuest(guestPeerId) {
@@ -704,6 +926,7 @@
       stopRoomSubscription();
       listenForFallbackState();
       syncFromFallbackSnapshot(roomData);
+      updateRoleUI();
       return;
     }
 
@@ -754,10 +977,15 @@
     setModeStatus("マッチング");
     setOpponentStatus("ゲスト待機中");
     setMessage("ルームを作成しました。URL を共有してゲストの参加を待ってください。Firestore にはルーム情報とピアIDだけを保持します。");
+    app.currentHostColor = "";
+    app.matchConfigured = false;
+    app.myColor = "";
+    clearRematchState();
     resetGameState();
 
     return AppFirebase.createRoom(roomId, buildRoomPayload()).then(function () {
       subscribeToRoom();
+      updateRoleUI();
     });
   }
 
@@ -770,6 +998,10 @@
     setModeStatus("マッチング");
     setOpponentStatus("ルーム参加中…");
     setMessage("ルームに参加しました。ホストが P2P 接続を開始するまで待機します。");
+    app.currentHostColor = "";
+    app.matchConfigured = false;
+    app.myColor = "";
+    clearRematchState();
     resetGameState();
 
     return AppFirebase.updateRoom(app.roomId, {
@@ -786,7 +1018,10 @@
 
   function resumeExistingRole(roomData, role) {
     app.role = role;
-    app.myColor = role === "host" ? BLACK : WHITE;
+    app.currentHostColor = "";
+    app.matchConfigured = false;
+    app.myColor = "";
+    clearRematchState();
     updateRoleUI();
     syncOpponentProfile(roomData);
     resetGameState();
@@ -973,6 +1208,76 @@
     window.location.href = window.location.pathname;
   }
 
+  function handleHostColorChange(color) {
+    if (app.role !== "host") {
+      return;
+    }
+
+    if (hasPlayedMove() && !app.game.winner) {
+      setMessage("対局中は開始色を変更できません。");
+      return;
+    }
+
+    app.desiredHostColor = color;
+    updateRoleUI();
+
+    if (AppPeer.isConnected() && app.transportMode === "p2p") {
+      try {
+        broadcastMatchSettings(color, false);
+      } catch (error) {
+        activateFirestoreFallback("開始設定の送信に失敗しました。 " + error.message);
+      }
+    }
+  }
+
+  function acceptRematch() {
+    if (!app.rematch.incoming || !AppPeer.isConnected()) {
+      return;
+    }
+
+    try {
+      AppPeer.send({
+        type: "rematch_accept",
+        swapColors: !!app.rematch.incoming.swapColors
+      });
+    } catch (error) {
+      activateFirestoreFallback("再戦承認の送信に失敗しました。 " + error.message);
+      return;
+    }
+
+    if (app.role === "host") {
+      finalizeIncomingRematch();
+      return;
+    }
+
+    app.rematch.outgoing = {
+      swapColors: !!app.rematch.incoming.swapColors
+    };
+    app.rematch.incoming = null;
+    updateRematchUI();
+    setMessage("再戦を承認しました。ホストの開始を待っています。");
+  }
+
+  function rejectRematch() {
+    if (!AppPeer.isConnected()) {
+      return;
+    }
+
+    clearRematchState();
+    updateRematchUI();
+
+    try {
+      AppPeer.send({
+        type: "rematch_reject"
+      });
+    } catch (error) {
+      activateFirestoreFallback("再戦辞退の送信に失敗しました。 " + error.message);
+      return;
+    }
+
+    setMessage("再戦を終了しました。");
+  }
+
   function bootstrap() {
     cacheElements();
     createBoardUI();
@@ -980,6 +1285,22 @@
 
     app.elements.copyLinkButton.addEventListener("click", handleCopyLink);
     app.elements.newRoomButton.addEventListener("click", handleNewRoom);
+    app.elements.hostBlackButton.addEventListener("click", function () {
+      handleHostColorChange(BLACK);
+    });
+    app.elements.hostWhiteButton.addEventListener("click", function () {
+      handleHostColorChange(WHITE);
+    });
+    app.elements.sameRematchButton.addEventListener("click", function () {
+      requestRematch(false);
+    });
+    app.elements.swapRematchButton.addEventListener("click", function () {
+      requestRematch(true);
+    });
+    app.elements.acceptRematchButton.addEventListener("click", acceptRematch);
+    app.elements.rejectRematchButton.addEventListener("click", rejectRematch);
+    updateRoleUI();
+    updateOpponentUI("", "");
 
     initLiffIdentity().then(function () {
       updateIdentityUI();

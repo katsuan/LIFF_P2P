@@ -74,31 +74,6 @@
       max-width: 32rem;
     }
 
-    .compact-status {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .status-pill {
-      padding: 10px 12px;
-      border-radius: 14px;
-      background: rgba(255, 255, 255, 0.8);
-      border: 1px solid rgba(29, 42, 34, 0.08);
-    }
-
-    .status-label {
-      font-size: 0.72rem;
-      color: var(--muted);
-      margin-bottom: 4px;
-    }
-
-    .status-value {
-      font-size: 0.92rem;
-      font-weight: 600;
-      line-height: 1.3;
-    }
-
     .top-actions {
       display: grid;
       gap: 10px;
@@ -278,6 +253,11 @@
       text-overflow: ellipsis;
     }
 
+    .player-status {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
     .badge-row {
       display: flex;
       gap: 8px;
@@ -305,6 +285,109 @@
     .legend {
       display: grid;
       gap: 12px;
+    }
+
+    .turn-card {
+      padding: 14px;
+      border-radius: 16px;
+      background: #203024;
+      color: #fffef9;
+      display: grid;
+      gap: 4px;
+    }
+
+    .turn-label {
+      font-size: 0.76rem;
+      color: rgba(255, 254, 249, 0.72);
+    }
+
+    .turn-value {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .control-panel {
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(29, 42, 34, 0.08);
+      display: grid;
+      gap: 10px;
+    }
+
+    .control-title {
+      font-size: 0.82rem;
+      font-weight: 700;
+    }
+
+    .control-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .control-actions button {
+      padding: 9px 13px;
+      font-size: 0.84rem;
+    }
+
+    .button-chip {
+      background: #edf0ea;
+      color: #223127;
+    }
+
+    .button-chip.active {
+      background: #203024;
+      color: #fffef9;
+    }
+
+    .button-ghost {
+      background: #f1efe7;
+      color: #203024;
+    }
+
+    .debug-panel {
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.62);
+      border: 1px solid rgba(29, 42, 34, 0.08);
+      overflow: hidden;
+    }
+
+    .debug-panel summary {
+      cursor: pointer;
+      list-style: none;
+      padding: 14px;
+      font-size: 0.88rem;
+      font-weight: 700;
+    }
+
+    .debug-panel summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .debug-grid {
+      padding: 0 14px 14px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .debug-item {
+      display: grid;
+      gap: 3px;
+    }
+
+    .debug-label {
+      font-size: 0.74rem;
+      color: var(--muted);
+    }
+
+    .debug-value {
+      font-size: 0.88rem;
+      word-break: break-all;
+    }
+
+    .hidden {
+      display: none;
     }
 
     .legend-item {
@@ -355,10 +438,6 @@
         grid-template-columns: 1fr;
       }
 
-      .compact-status {
-        grid-template-columns: 1fr;
-      }
-
       .button-row {
         justify-content: flex-start;
       }
@@ -375,20 +454,6 @@
             Firestore はマッチング専用。接続後の対局は P2P で進みます。
           </p>
         </div>
-        <div class="compact-status">
-          <div class="status-pill">
-            <div class="status-label">通信</div>
-            <div id="transportStatus" class="status-value">起動中…</div>
-          </div>
-          <div class="status-pill">
-            <div class="status-label">相手</div>
-            <div id="opponentStatus" class="status-value">待機中…</div>
-          </div>
-          <div class="status-pill">
-            <div class="status-label">手番</div>
-            <div id="turnStatus" class="status-value">盤面を準備中…</div>
-          </div>
-        </div>
       </div>
 
       <div class="top-actions">
@@ -399,9 +464,6 @@
           <button id="copyLinkButton" class="button-primary" type="button">URL をコピー</button>
           <button id="newRoomButton" class="button-secondary" type="button">新しいルーム</button>
         </div>
-        <div class="small" id="roomSummary">まだルームはありません</div>
-        <div class="small" id="peerSummary">シグナリングサーバーに接続中…</div>
-        <div class="small" id="modeStatus">マッチング</div>
       </div>
     </section>
 
@@ -423,11 +485,36 @@
           <div class="player-meta">
             <div class="player-label">対戦相手</div>
             <div id="opponentName" class="player-name">参加待ち</div>
+            <div id="opponentStatus" class="player-status">待機中…</div>
           </div>
+        </div>
+        <div class="turn-card">
+          <div class="turn-label">現在の手番</div>
+          <div id="turnStatus" class="turn-value">盤面を準備中…</div>
         </div>
         <div class="badge-row">
           <div id="roleBadge" class="badge">役割: 未確定</div>
           <div id="colorBadge" class="badge">色: 未確定</div>
+        </div>
+        <div id="hostSetupPanel" class="control-panel hidden">
+          <div class="control-title">開始前設定</div>
+          <div class="control-actions">
+            <button id="hostBlackButton" class="button-chip active" type="button">ホストが黒</button>
+            <button id="hostWhiteButton" class="button-chip" type="button">ホストが白</button>
+          </div>
+          <div id="controlHint" class="small">接続後にこの設定を相手へ同期します。</div>
+        </div>
+        <div id="rematchPanel" class="control-panel hidden">
+          <div class="control-title">再戦</div>
+          <div id="rematchActions" class="control-actions">
+            <button id="sameRematchButton" class="button-primary" type="button">同じ色で再戦</button>
+            <button id="swapRematchButton" class="button-secondary" type="button">色を入れ替えて再戦</button>
+          </div>
+          <div id="rematchDecision" class="control-actions hidden">
+            <button id="acceptRematchButton" class="button-primary" type="button">再戦する</button>
+            <button id="rejectRematchButton" class="button-ghost" type="button">今回は終了</button>
+          </div>
+          <div id="rematchHint" class="small">ゲーム終了後に同じルームで再戦できます。</div>
         </div>
         <div id="messageBox" class="message-box">
           LIFF、Firebase、PeerJS の初期化を待っています。
@@ -451,6 +538,27 @@
         <div class="small">
           有効な手はハイライト表示されます。無効なマスは押せないため、両クライアントで同じ盤面状態を維持できます。
         </div>
+        <details class="debug-panel">
+          <summary>接続情報を確認</summary>
+          <div class="debug-grid">
+            <div class="debug-item">
+              <div class="debug-label">通信方式</div>
+              <div id="transportStatus" class="debug-value">起動中…</div>
+            </div>
+            <div class="debug-item">
+              <div class="debug-label">モード</div>
+              <div id="modeStatus" class="debug-value">マッチング</div>
+            </div>
+            <div class="debug-item">
+              <div class="debug-label">ルーム</div>
+              <div id="roomSummary" class="debug-value">まだルームはありません</div>
+            </div>
+            <div class="debug-item">
+              <div class="debug-label">ピアID</div>
+              <div id="peerSummary" class="debug-value">シグナリングサーバーに接続中…</div>
+            </div>
+          </div>
+        </details>
       </aside>
     </section>
   </div>
