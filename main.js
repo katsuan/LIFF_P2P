@@ -3,6 +3,7 @@
   var BLACK = "B";
   var WHITE = "W";
   var P2P_TIMEOUT_MS = 5000;
+  var RECONNECT_TIMEOUT_MS = 8000;
 
   var app = {
     userId: "",
@@ -22,6 +23,8 @@
     fallbackUnsubscribe: null,
     pendingPeerTarget: "",
     p2pTimer: null,
+    reconnectTimer: null,
+    reconnecting: false,
     comTimer: null,
     transportMode: "matchmaking",
     rematch: {
@@ -55,13 +58,14 @@
     app.elements.transportStatus = document.getElementById("transportStatus");
     app.elements.opponentStatus = document.getElementById("opponentStatus");
     app.elements.opponentName = document.getElementById("opponentName");
+    app.elements.myLabel = document.getElementById("myLabel");
+    app.elements.opponentLabel = document.getElementById("opponentLabel");
+    app.elements.myScore = document.getElementById("myScore");
+    app.elements.opponentScore = document.getElementById("opponentScore");
     app.elements.turnStatus = document.getElementById("turnStatus");
     app.elements.modeStatus = document.getElementById("modeStatus");
     app.elements.roleBadge = document.getElementById("roleBadge");
-    app.elements.colorBadge = document.getElementById("colorBadge");
     app.elements.messageBox = document.getElementById("messageBox");
-    app.elements.blackScore = document.getElementById("blackScore");
-    app.elements.whiteScore = document.getElementById("whiteScore");
     app.elements.myAvatar = document.getElementById("myAvatar");
     app.elements.opponentAvatar = document.getElementById("opponentAvatar");
     app.elements.hostSetupPanel = document.getElementById("hostSetupPanel");
@@ -142,6 +146,18 @@
 
   function buttonColorLabel(color) {
     return color === BLACK ? "ホストが黒" : "ホストが白";
+  }
+
+  function scoreForColor(counts, color) {
+    if (color === BLACK) {
+      return counts.black;
+    }
+
+    if (color === WHITE) {
+      return counts.white;
+    }
+
+    return "-";
   }
 
   function roleName(role) {
@@ -423,8 +439,8 @@
     var key;
     var canPlay;
 
-    setText(app.elements.blackScore, String(counts.black));
-    setText(app.elements.whiteScore, String(counts.white));
+    setText(app.elements.myScore, String(scoreForColor(counts, app.myColor)));
+    setText(app.elements.opponentScore, String(scoreForColor(counts, app.myColor ? getOpponent(app.myColor) : "")));
 
     if (!app.game.currentTurn) {
       setText(app.elements.turnStatus, app.game.winner ? (app.game.winner + "の勝ち") : "ゲーム終了");
@@ -473,6 +489,13 @@
     }
   }
 
+  function stopReconnectTimer() {
+    if (app.reconnectTimer) {
+      window.clearTimeout(app.reconnectTimer);
+      app.reconnectTimer = null;
+    }
+  }
+
   function hasPlayedMove() {
     return !!app.game.lastMove || app.game.version > 0;
   }
@@ -511,7 +534,8 @@
   }
 
   function updateRematchUI() {
-    var showPanel = app.game.winner &&
+    var showPanel = !app.reconnecting &&
+      app.game.winner &&
       ((app.transportMode === "p2p" && AppPeer.isConnected()) || app.transportMode === "com");
     var decisionText = "ゲーム終了後に同じルームで再戦できます。";
 
@@ -542,18 +566,23 @@
   }
 
   function updateRoleUI() {
-    var colorLabel = "未確定";
+    var myLabel = "あなた";
+    var opponentLabel = isComMode() ? "COM" : "対戦相手";
 
     if (app.myColor) {
-      colorLabel = colorName(app.myColor);
+      myLabel += " (" + colorName(app.myColor) + ")";
+      opponentLabel += " (" + colorName(getOpponent(app.myColor)) + ")";
     } else if (app.role === "host") {
-      colorLabel = buttonColorLabel(app.desiredHostColor) + "予定";
+      myLabel += " (" + colorName(app.desiredHostColor) + "予定)";
+      opponentLabel += " (" + colorName(getOpponent(app.desiredHostColor)) + "予定)";
     }
 
     setText(app.elements.roleBadge, "役割: " + roleName(app.role));
-    setText(app.elements.colorBadge, "色: " + colorLabel);
+    setText(app.elements.myLabel, myLabel);
+    setText(app.elements.opponentLabel, opponentLabel);
     updateHostSetupUI();
     updateRematchUI();
+    renderBoard();
   }
 
   function updateIdentityUI() {
@@ -637,6 +666,103 @@
       app.comTimer = null;
       makeMove(nextMove.row, nextMove.col, app.game.currentTurn, "com", app.game.version + 1);
     }, 420);
+  }
+
+  function buildStateSnapshot() {
+    return {
+      type: "state_sync",
+      board: serializeBoard(app.game.board),
+      currentTurn: app.game.currentTurn || "",
+      version: app.game.version || 0,
+      winner: app.game.winner || "",
+      message: app.game.message || "",
+      matchConfigured: !!app.matchConfigured,
+      hostColor: app.currentHostColor || app.desiredHostColor || ""
+    };
+  }
+
+  function sendStateSnapshot() {
+    if (!AppPeer.isConnected() || isComMode()) {
+      return;
+    }
+
+    AppPeer.send(buildStateSnapshot());
+  }
+
+  function boardsMatch(rows) {
+    return serializeBoard(app.game.board).join("|") === (rows || []).join("|");
+  }
+
+  function applyStateSnapshot(data) {
+    var incomingVersion = Number(data.version || 0);
+    var localVersion = Number(app.game.version || 0);
+    var shouldAdopt = false;
+
+    if (!data || !data.board) {
+      return;
+    }
+
+    if (incomingVersion > localVersion) {
+      shouldAdopt = true;
+    } else if (incomingVersion === localVersion) {
+      if (!app.matchConfigured && data.matchConfigured) {
+        shouldAdopt = true;
+      } else if (!boardsMatch(data.board)) {
+        activateFirestoreFallback("再接続後の盤面が一致しません。");
+        return;
+      }
+    }
+
+    if (!shouldAdopt && !(incomingVersion === localVersion && data.matchConfigured && !app.matchConfigured)) {
+      return;
+    }
+
+    if (data.hostColor) {
+      app.currentHostColor = data.hostColor;
+      app.desiredHostColor = data.hostColor;
+      app.matchConfigured = !!data.matchConfigured;
+      app.myColor = app.role === "host" ? data.hostColor : getOpponent(data.hostColor);
+    }
+
+    app.game.board = deserializeBoard(data.board);
+    app.game.currentTurn = data.currentTurn || "";
+    app.game.version = incomingVersion;
+    app.game.winner = data.winner || "";
+    app.game.message = data.message || app.game.message;
+    renderBoard();
+    updateRoleUI();
+    updateRematchUI();
+    setMessage(app.game.message);
+  }
+
+  function switchToComTakeover(reason) {
+    var hostColor = app.currentHostColor || app.desiredHostColor || "";
+
+    app.reconnecting = false;
+    stopReconnectTimer();
+    stopP2PTimer();
+    stopRoomSubscription();
+    clearRematchState();
+    app.pendingPeerTarget = "";
+    app.opponentMode = "com";
+    app.transportMode = "com";
+
+    if (!hostColor && app.myColor) {
+      hostColor = app.role === "host" ? app.myColor : getOpponent(app.myColor);
+      app.currentHostColor = hostColor;
+      app.desiredHostColor = hostColor;
+    }
+
+    app.matchConfigured = true;
+    setTransportStatus("ローカル");
+    setModeStatus("COM 引き継ぎ");
+    setOpponentStatus("切断のため COM に切替");
+    updateOpponentUI("COM", "");
+    updateRoleUI();
+    updateRematchUI();
+    setMessage(reason + " 相手の代わりに COM が続けます。");
+    renderBoard();
+    maybeScheduleComTurn();
   }
 
   function applyMatchSettings(hostColor, isRematch) {
@@ -761,6 +887,8 @@
       return;
     }
 
+    app.reconnecting = false;
+    stopReconnectTimer();
     app.transportMode = "firestore";
     setTransportStatus("Firestore フォールバック");
     setModeStatus("フォールバック同期");
@@ -775,11 +903,46 @@
     });
   }
 
-  function startP2PPlay() {
-    if (app.transportMode === "p2p") {
+  function beginReconnectFlow(reason) {
+    if (isComMode() || app.transportMode === "firestore" || !app.roomId) {
       return;
     }
 
+    if (app.reconnecting) {
+      return;
+    }
+
+    app.reconnecting = true;
+    app.pendingPeerTarget = "";
+    app.transportMode = "reconnecting";
+    stopP2PTimer();
+    stopReconnectTimer();
+    subscribeToRoom();
+    setTransportStatus("再接続中");
+    setModeStatus("P2P 再接続");
+    setOpponentStatus("再接続待ち…");
+    setMessage(reason + " 同じルームで再接続を試みます。");
+    updateRematchUI();
+
+    if (app.role === "host" && app.roomData && app.roomData.guestPeerId) {
+      tryConnectToGuest(app.roomData.guestPeerId);
+    }
+
+    app.reconnectTimer = window.setTimeout(function () {
+      app.reconnectTimer = null;
+      if (!AppPeer.isConnected()) {
+        switchToComTakeover("P2P の再接続に失敗しました。");
+      }
+    }, RECONNECT_TIMEOUT_MS);
+  }
+
+  function startP2PPlay() {
+    if (app.transportMode === "p2p" && !app.reconnecting) {
+      return;
+    }
+
+    app.reconnecting = false;
+    stopReconnectTimer();
     app.opponentMode = "human";
     app.transportMode = "p2p";
     stopP2PTimer();
@@ -796,14 +959,30 @@
 
     if (app.role === "host") {
       try {
-        broadcastMatchSettings(app.desiredHostColor, false);
+        if (app.matchConfigured) {
+          sendStateSnapshot();
+          setMessage("P2P 接続が再開されました。対局を同期しています。");
+        } else {
+          broadcastMatchSettings(app.desiredHostColor, false);
+          sendStateSnapshot();
+        }
       } catch (error) {
         activateFirestoreFallback("初期設定の送信に失敗しました。 " + error.message);
       }
       return;
     }
 
-    setMessage("P2P 接続が確立されました。ホストの開始設定を待っています。");
+    if (app.matchConfigured) {
+      try {
+        sendStateSnapshot();
+      } catch (error) {
+        activateFirestoreFallback("再接続後の状態同期に失敗しました。 " + error.message);
+        return;
+      }
+      setMessage("P2P 接続が再開されました。対局を同期しています。");
+    } else {
+      setMessage("P2P 接続が確立されました。ホストの開始設定を待っています。");
+    }
     updateRoleUI();
   }
 
@@ -946,6 +1125,11 @@
     if (data.type === "match_settings") {
       app.opponentMode = "human";
       applyMatchSettings(data.hostColor, !!data.isRematch);
+      return;
+    }
+
+    if (data.type === "state_sync") {
+      applyStateSnapshot(data);
       return;
     }
 
@@ -1265,19 +1449,24 @@
         handlePeerData(data);
       },
       onConnectionClose: function () {
+        app.pendingPeerTarget = "";
         if (app.transportMode !== "firestore") {
-          activateFirestoreFallback("P2P 接続が切断されました。");
+          beginReconnectFlow("P2P 接続が切断されました。");
         }
       },
       onConnectionError: function (error) {
-        activateFirestoreFallback("P2P 接続エラーが発生しました: " + error.message);
+        app.pendingPeerTarget = "";
+        if (app.transportMode !== "firestore") {
+          beginReconnectFlow("P2P 接続エラーが発生しました: " + error.message);
+        }
       },
       onPeerError: function (error) {
         setMessage("PeerJS エラー: " + error.message);
       },
       onPeerDisconnected: function () {
+        app.pendingPeerTarget = "";
         if (app.transportMode !== "firestore") {
-          activateFirestoreFallback("ピアのシグナリング接続が切断されました。");
+          beginReconnectFlow("ピアのシグナリング接続が切断されました。");
         }
       }
     });
@@ -1335,6 +1524,8 @@
 
   function startComMatch(hostColor, isRematch) {
     app.opponentMode = "com";
+    app.reconnecting = false;
+    stopReconnectTimer();
     app.transportMode = "com";
     setTransportStatus("ローカル");
     setModeStatus("COM 対戦");
