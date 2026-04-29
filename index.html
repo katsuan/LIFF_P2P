@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LIFF P2P オセロ</title>
+  <style>
+    :root {
+      --bg: #f4efe2;
+      --panel: #fffaf0;
+      --board: #126b3a;
+      --board-line: rgba(255, 255, 255, 0.28);
+      --text: #1d2a22;
+      --muted: #576459;
+      --accent: #d66d2f;
+      --valid: rgba(255, 217, 102, 0.92);
+      --shadow: 0 16px 40px rgba(23, 34, 27, 0.12);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Avenir Next", "Helvetica Neue", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(214, 109, 47, 0.16), transparent 28%),
+        radial-gradient(circle at bottom right, rgba(18, 107, 58, 0.16), transparent 24%),
+        linear-gradient(180deg, #fbf7ef 0%, var(--bg) 100%);
+      padding: 24px 16px 48px;
+    }
+
+    .app {
+      max-width: 1080px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.25fr 0.95fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .panel {
+      background: rgba(255, 250, 240, 0.9);
+      border: 1px solid rgba(29, 42, 34, 0.08);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(8px);
+    }
+
+    .panel-main {
+      padding: 28px;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: clamp(2rem, 4vw, 3.8rem);
+      line-height: 0.95;
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin: 0;
+      font-size: 1rem;
+      line-height: 1.6;
+      color: var(--muted);
+      max-width: 36rem;
+    }
+
+    .status-strip {
+      margin-top: 22px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .status-card {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.76);
+      border: 1px solid rgba(29, 42, 34, 0.08);
+    }
+
+    .status-label {
+      font-size: 0.75rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .status-value {
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .meta {
+      padding: 22px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .meta-row {
+      display: grid;
+      gap: 6px;
+    }
+
+    .meta-row label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+    }
+
+    .meta-row input {
+      width: 100%;
+      border: 1px solid rgba(29, 42, 34, 0.12);
+      border-radius: 12px;
+      padding: 12px 14px;
+      background: #ffffff;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .button-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 140ms ease, opacity 140ms ease, box-shadow 140ms ease;
+    }
+
+    button:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 20px rgba(23, 34, 27, 0.12);
+    }
+
+    button:disabled {
+      cursor: default;
+      opacity: 0.48;
+      box-shadow: none;
+    }
+
+    .button-primary {
+      background: var(--accent);
+      color: #fffaf2;
+    }
+
+    .button-secondary {
+      background: #dde8dd;
+      color: #203024;
+    }
+
+    .board-layout {
+      margin-top: 24px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 320px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .board-shell {
+      padding: 20px;
+    }
+
+    .board {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 0;
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      background: var(--board);
+      border: 8px solid #0f502d;
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .cell {
+      position: relative;
+      border: 1px solid var(--board-line);
+      background: transparent;
+      padding: 0;
+      min-width: 0;
+      min-height: 0;
+      border-radius: 0;
+    }
+
+    .cell:hover:not(:disabled) {
+      transform: none;
+      box-shadow: none;
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .cell.valid::after {
+      content: "";
+      position: absolute;
+      width: 18%;
+      height: 18%;
+      min-width: 12px;
+      min-height: 12px;
+      border-radius: 50%;
+      background: var(--valid);
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 0 4px rgba(255, 217, 102, 0.16);
+    }
+
+    .disc {
+      position: absolute;
+      inset: 12%;
+      border-radius: 50%;
+      box-shadow: inset 0 2px 6px rgba(255, 255, 255, 0.14), 0 4px 10px rgba(0, 0, 0, 0.16);
+    }
+
+    .disc.black {
+      background: linear-gradient(180deg, #3e4741 0%, #121714 100%);
+    }
+
+    .disc.white {
+      background: linear-gradient(180deg, #fffef9 0%, #d9d7cd 100%);
+    }
+
+    .sidebar {
+      padding: 20px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .badge-row {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: #eef3e8;
+      color: #29402e;
+      font-size: 0.9rem;
+      font-weight: 600;
+    }
+
+    .message-box {
+      padding: 16px;
+      border-radius: 16px;
+      background: #fff;
+      border: 1px solid rgba(29, 42, 34, 0.1);
+      line-height: 1.55;
+      min-height: 88px;
+    }
+
+    .legend {
+      display: grid;
+      gap: 12px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(29, 42, 34, 0.08);
+    }
+
+    .legend-name {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 600;
+    }
+
+    .legend-disc {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .legend-disc.black {
+      background: #161d19;
+    }
+
+    .legend-disc.white {
+      background: #fff;
+      border: 1px solid rgba(0, 0, 0, 0.2);
+    }
+
+    .small {
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+
+    @media (max-width: 900px) {
+      .hero,
+      .board-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <div class="panel panel-main">
+        <h1>LIFF P2P オセロ</h1>
+        <p class="subtitle">
+          Firestore はマッチングとシグナリングのみに使用します。両者が接続した後の手番通信はすべて WebRTC で行い、オセロの判定ロジックは両クライアントで同じように実行されます。
+        </p>
+        <div class="status-strip">
+          <div class="status-card">
+            <div class="status-label">通信方式</div>
+            <div id="transportStatus" class="status-value">起動中…</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">対戦相手</div>
+            <div id="opponentStatus" class="status-value">待機中…</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">手番</div>
+            <div id="turnStatus" class="status-value">盤面を準備中…</div>
+          </div>
+          <div class="status-card">
+            <div class="status-label">モード</div>
+            <div id="modeStatus" class="status-value">マッチング</div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="panel meta">
+        <div class="meta-row">
+          <label for="shareUrl">共有 URL</label>
+          <input id="shareUrl" type="text" readonly value="ルーム作成中…">
+        </div>
+        <div class="button-row">
+          <button id="copyLinkButton" class="button-primary" type="button">URL をコピー</button>
+          <button id="newRoomButton" class="button-secondary" type="button">新しいルーム</button>
+        </div>
+        <div class="meta-row">
+          <label>現在のユーザー</label>
+          <div id="userSummary" class="small">LIFF を初期化中…</div>
+        </div>
+        <div class="meta-row">
+          <label>ルーム</label>
+          <div id="roomSummary" class="small">まだルームはありません</div>
+        </div>
+        <div class="meta-row">
+          <label>ピアID</label>
+          <div id="peerSummary" class="small">シグナリングサーバーに接続中…</div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="board-layout">
+      <div class="panel board-shell">
+        <div id="board" class="board" aria-label="オセロ盤"></div>
+      </div>
+
+      <aside class="panel sidebar">
+        <div class="badge-row">
+          <div id="roleBadge" class="badge">役割: 未確定</div>
+          <div id="colorBadge" class="badge">色: 未確定</div>
+        </div>
+        <div id="messageBox" class="message-box">
+          LIFF、Firebase、PeerJS の初期化を待っています。
+        </div>
+        <div class="legend">
+          <div class="legend-item">
+            <div class="legend-name">
+              <span class="legend-disc black"></span>
+              <span>黒</span>
+            </div>
+            <strong id="blackScore">2</strong>
+          </div>
+          <div class="legend-item">
+            <div class="legend-name">
+              <span class="legend-disc white"></span>
+              <span>白</span>
+            </div>
+            <strong id="whiteScore">2</strong>
+          </div>
+        </div>
+        <div class="small">
+          有効な手はハイライト表示されます。無効なマスは押せないため、両クライアントで同じ盤面状態を維持できます。
+        </div>
+      </aside>
+    </section>
+  </div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="firebase.js"></script>
+  <script src="webrtc.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

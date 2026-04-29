@@ -1,0 +1,40 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isRoomDocument() {
+      return request.resource.data.roomId is string
+        && request.resource.data.hostUserId is string
+        && request.resource.data.hostPeerId is string
+        && request.resource.data.guestUserId is string
+        && request.resource.data.guestPeerId is string
+        && request.resource.data.status in ['waiting', 'ready', 'playing'];
+    }
+
+    function hasAllowedOptionalFields() {
+      return !('transportMode' in request.resource.data)
+        || request.resource.data.transportMode in ['p2p', 'firestore'];
+    }
+
+    function hasValidFallbackFields() {
+      return !('board' in request.resource.data)
+        || (
+          request.resource.data.board is list
+          && request.resource.data.board.size() == 8
+          && request.resource.data.currentTurn is string
+          && request.resource.data.version is int
+          && request.resource.data.winner is string
+          && request.resource.data.message is string
+        );
+    }
+
+    // このデモはクライアント側の LIFF ID を使う構成で、Firebase Auth は前提にしていません。
+    // そのため認可よりも、ルームデータの構造検証を優先しています。
+    match /rooms/{roomId} {
+      allow read: if true;
+      allow create, update: if isRoomDocument()
+        && hasAllowedOptionalFields()
+        && hasValidFallbackFields();
+      allow delete: if false;
+    }
+  }
+}
