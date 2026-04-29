@@ -13,6 +13,7 @@
     roomUrl: "",
     role: "",
     myColor: "",
+    opponentMode: "human",
     desiredHostColor: BLACK,
     currentHostColor: "",
     matchConfigured: false,
@@ -21,6 +22,7 @@
     fallbackUnsubscribe: null,
     pendingPeerTarget: "",
     p2pTimer: null,
+    comTimer: null,
     transportMode: "matchmaking",
     rematch: {
       outgoing: null,
@@ -63,6 +65,8 @@
     app.elements.myAvatar = document.getElementById("myAvatar");
     app.elements.opponentAvatar = document.getElementById("opponentAvatar");
     app.elements.hostSetupPanel = document.getElementById("hostSetupPanel");
+    app.elements.humanOpponentButton = document.getElementById("humanOpponentButton");
+    app.elements.comOpponentButton = document.getElementById("comOpponentButton");
     app.elements.hostBlackButton = document.getElementById("hostBlackButton");
     app.elements.hostWhiteButton = document.getElementById("hostWhiteButton");
     app.elements.controlHint = document.getElementById("controlHint");
@@ -462,8 +466,19 @@
     app.rematch.incoming = null;
   }
 
+  function clearComTimer() {
+    if (app.comTimer) {
+      window.clearTimeout(app.comTimer);
+      app.comTimer = null;
+    }
+  }
+
   function hasPlayedMove() {
     return !!app.game.lastMove || app.game.version > 0;
+  }
+
+  function isComMode() {
+    return app.opponentMode === "com";
   }
 
   function updateHostSetupUI() {
@@ -477,10 +492,14 @@
       return;
     }
 
+    app.elements.humanOpponentButton.classList.toggle("active", app.opponentMode === "human");
+    app.elements.comOpponentButton.classList.toggle("active", app.opponentMode === "com");
     app.elements.hostBlackButton.classList.toggle("active", app.desiredHostColor === BLACK);
     app.elements.hostWhiteButton.classList.toggle("active", app.desiredHostColor === WHITE);
 
-    if (!AppPeer.isConnected()) {
+    if (isComMode()) {
+      setText(app.elements.controlHint, "COM はこの端末だけで対戦します。Firestore も P2P も使いません。");
+    } else if (!AppPeer.isConnected()) {
       setText(app.elements.controlHint, "接続後にこの設定を相手へ同期します。");
     } else if (!app.matchConfigured) {
       setText(app.elements.controlHint, "接続済みです。この設定で対局を開始します。");
@@ -492,11 +511,19 @@
   }
 
   function updateRematchUI() {
-    var showPanel = app.game.winner && app.transportMode === "p2p" && AppPeer.isConnected();
+    var showPanel = app.game.winner &&
+      ((app.transportMode === "p2p" && AppPeer.isConnected()) || app.transportMode === "com");
     var decisionText = "ゲーム終了後に同じルームで再戦できます。";
 
     setHidden(app.elements.rematchPanel, !showPanel);
     if (!showPanel) {
+      return;
+    }
+
+    if (app.transportMode === "com") {
+      setHidden(app.elements.rematchActions, false);
+      setHidden(app.elements.rematchDecision, true);
+      setText(app.elements.rematchHint, "COM と同じルームで再戦できます。");
       return;
     }
 
@@ -560,6 +587,58 @@
     updateOpponentUI(opponentName, opponentPictureUrl);
   }
 
+  function chooseComMove() {
+    var validMoves = getValidMoves(app.game.board, app.game.currentTurn);
+    var bestMove = null;
+    var bestScore = -1;
+    var i;
+    var move;
+    var positionalBonus;
+
+    for (i = 0; i < validMoves.length; i += 1) {
+      move = validMoves[i];
+      positionalBonus = 0;
+
+      if ((move.row === 0 || move.row === 7) && (move.col === 0 || move.col === 7)) {
+        positionalBonus = 100;
+      } else if (move.row === 0 || move.row === 7 || move.col === 0 || move.col === 7) {
+        positionalBonus = 10;
+      }
+
+      move.score = move.flips.length + positionalBonus;
+
+      if (move.score > bestScore) {
+        bestScore = move.score;
+        bestMove = move;
+      }
+    }
+
+    return bestMove;
+  }
+
+  function maybeScheduleComTurn() {
+    var nextMove;
+
+    clearComTimer();
+    if (!isComMode() || app.transportMode !== "com" || app.game.winner || !app.matchConfigured) {
+      return;
+    }
+
+    if (!app.game.currentTurn || app.game.currentTurn === app.myColor) {
+      return;
+    }
+
+    nextMove = chooseComMove();
+    if (!nextMove) {
+      return;
+    }
+
+    app.comTimer = window.setTimeout(function () {
+      app.comTimer = null;
+      makeMove(nextMove.row, nextMove.col, app.game.currentTurn, "com", app.game.version + 1);
+    }, 420);
+  }
+
   function applyMatchSettings(hostColor, isRematch) {
     app.currentHostColor = hostColor;
     app.desiredHostColor = hostColor;
@@ -569,6 +648,7 @@
     updateRoleUI();
     resetGameState();
     setMessage(isRematch ? "再戦を開始しました。黒が先手です。" : "対局を開始しました。黒が先手です。");
+    maybeScheduleComTurn();
   }
 
   function broadcastMatchSettings(hostColor, isRematch) {
@@ -700,6 +780,7 @@
       return;
     }
 
+    app.opponentMode = "human";
     app.transportMode = "p2p";
     stopP2PTimer();
     stopRoomSubscription();
@@ -735,6 +816,11 @@
   }
 
   function requestRematch(swapColors) {
+    if (app.transportMode === "com") {
+      startComMatch(swapColors ? getOpponent(app.currentHostColor || app.desiredHostColor || BLACK) : (app.currentHostColor || app.desiredHostColor || BLACK), true);
+      return;
+    }
+
     if (!AppPeer.isConnected()) {
       return;
     }
@@ -802,6 +888,7 @@
     setMessage(moveMessage);
     renderBoard();
     updateRematchUI();
+    maybeScheduleComTurn();
 
     if (app.transportMode === "firestore") {
       persistFallbackMove();
@@ -857,6 +944,7 @@
     }
 
     if (data.type === "match_settings") {
+      app.opponentMode = "human";
       applyMatchSettings(data.hostColor, !!data.isRematch);
       return;
     }
@@ -915,6 +1003,10 @@
       return;
     }
 
+    if (app.role === "host" && isComMode()) {
+      return;
+    }
+
     syncOpponentProfile(roomData);
 
     if (roomData.transportMode === "firestore") {
@@ -970,6 +1062,7 @@
 
   function createHostRoom(roomId) {
     app.role = "host";
+    app.opponentMode = "human";
     app.myColor = BLACK;
     updateRoleUI();
     updateRoomUrl(roomId);
@@ -981,6 +1074,7 @@
     app.matchConfigured = false;
     app.myColor = "";
     clearRematchState();
+    clearComTimer();
     resetGameState();
 
     return AppFirebase.createRoom(roomId, buildRoomPayload()).then(function () {
@@ -991,6 +1085,7 @@
 
   function joinAsGuest(roomData) {
     app.role = "guest";
+    app.opponentMode = "human";
     app.myColor = WHITE;
     updateRoleUI();
     syncOpponentProfile(roomData);
@@ -1002,6 +1097,7 @@
     app.matchConfigured = false;
     app.myColor = "";
     clearRematchState();
+    clearComTimer();
     resetGameState();
 
     return AppFirebase.updateRoom(app.roomId, {
@@ -1018,10 +1114,12 @@
 
   function resumeExistingRole(roomData, role) {
     app.role = role;
+    app.opponentMode = "human";
     app.currentHostColor = "";
     app.matchConfigured = false;
     app.myColor = "";
     clearRematchState();
+    clearComTimer();
     updateRoleUI();
     syncOpponentProfile(roomData);
     resetGameState();
@@ -1221,6 +1319,11 @@
     app.desiredHostColor = color;
     updateRoleUI();
 
+    if (isComMode()) {
+      startComMatch(color, false);
+      return;
+    }
+
     if (AppPeer.isConnected() && app.transportMode === "p2p") {
       try {
         broadcastMatchSettings(color, false);
@@ -1228,6 +1331,59 @@
         activateFirestoreFallback("開始設定の送信に失敗しました。 " + error.message);
       }
     }
+  }
+
+  function startComMatch(hostColor, isRematch) {
+    app.opponentMode = "com";
+    app.transportMode = "com";
+    setTransportStatus("ローカル");
+    setModeStatus("COM 対戦");
+    setOpponentStatus("ローカル対戦");
+    updateOpponentUI("COM", "");
+    stopP2PTimer();
+    stopRoomSubscription();
+    clearRematchState();
+    applyMatchSettings(hostColor, isRematch);
+    setMessage(isRematch ? "COM と再戦を開始しました。黒が先手です。" : "COM 対戦を開始しました。黒が先手です。");
+  }
+
+  function setOpponentMode(mode) {
+    var canSwitch = app.role === "host" &&
+      !hasPlayedMove() &&
+      !app.game.winner &&
+      (!app.roomData || !app.roomData.guestUserId) &&
+      !AppPeer.isConnected();
+
+    if (app.role !== "host" || mode === app.opponentMode) {
+      return;
+    }
+
+    if (!canSwitch) {
+      setMessage("対戦相手の種類は、接続前かつ対局前のみ変更できます。");
+      return;
+    }
+
+    app.opponentMode = mode;
+
+    if (mode === "com") {
+      startComMatch(app.desiredHostColor, false);
+      return;
+    }
+
+    clearComTimer();
+    app.transportMode = "matchmaking";
+    app.matchConfigured = false;
+    app.currentHostColor = "";
+    app.myColor = "";
+    clearRematchState();
+    resetGameState();
+    setTransportStatus("ゲスト待機中");
+    setModeStatus("マッチング");
+    setOpponentStatus("ゲスト待機中");
+    updateOpponentUI("参加待ち", "");
+    setMessage("URL を共有してゲストの参加を待ってください。");
+    subscribeToRoom();
+    updateRoleUI();
   }
 
   function acceptRematch() {
@@ -1285,6 +1441,12 @@
 
     app.elements.copyLinkButton.addEventListener("click", handleCopyLink);
     app.elements.newRoomButton.addEventListener("click", handleNewRoom);
+    app.elements.humanOpponentButton.addEventListener("click", function () {
+      setOpponentMode("human");
+    });
+    app.elements.comOpponentButton.addEventListener("click", function () {
+      setOpponentMode("com");
+    });
     app.elements.hostBlackButton.addEventListener("click", function () {
       handleHostColorChange(BLACK);
     });
