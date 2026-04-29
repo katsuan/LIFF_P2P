@@ -34,15 +34,8 @@
     }
 
     .app {
-      max-width: 1080px;
+      max-width: 960px;
       margin: 0 auto;
-    }
-
-    .hero {
-      display: grid;
-      grid-template-columns: 1.25fr 0.95fr;
-      gap: 24px;
-      align-items: start;
     }
 
     .panel {
@@ -53,92 +46,92 @@
       backdrop-filter: blur(8px);
     }
 
-    .panel-main {
-      padding: 28px;
+    .topbar {
+      padding: 22px 24px;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 18px;
+      align-items: center;
+    }
+
+    .title-group {
+      display: grid;
+      gap: 10px;
     }
 
     h1 {
       margin: 0 0 10px;
-      font-size: clamp(2rem, 4vw, 3.8rem);
-      line-height: 0.95;
+      font-size: clamp(1.8rem, 3vw, 2.6rem);
+      line-height: 1;
       letter-spacing: -0.04em;
     }
 
     .subtitle {
       margin: 0;
-      font-size: 1rem;
-      line-height: 1.6;
+      font-size: 0.95rem;
+      line-height: 1.5;
       color: var(--muted);
-      max-width: 36rem;
+      max-width: 32rem;
     }
 
-    .status-strip {
-      margin-top: 22px;
+    .compact-status {
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 12px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
     }
 
-    .status-card {
-      padding: 14px 16px;
-      border-radius: 16px;
-      background: rgba(255, 255, 255, 0.76);
+    .status-pill {
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.8);
       border: 1px solid rgba(29, 42, 34, 0.08);
     }
 
     .status-label {
-      font-size: 0.75rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
+      font-size: 0.72rem;
       color: var(--muted);
-      margin-bottom: 6px;
+      margin-bottom: 4px;
     }
 
     .status-value {
-      font-size: 1rem;
+      font-size: 0.92rem;
       font-weight: 600;
-      line-height: 1.4;
+      line-height: 1.3;
     }
 
-    .meta {
-      padding: 22px;
+    .top-actions {
       display: grid;
-      gap: 12px;
+      gap: 10px;
+      min-width: 240px;
     }
 
-    .meta-row {
-      display: grid;
-      gap: 6px;
+    .link-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
     }
 
-    .meta-row label {
-      font-size: 0.78rem;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: var(--muted);
-    }
-
-    .meta-row input {
+    .share-url {
       width: 100%;
       border: 1px solid rgba(29, 42, 34, 0.12);
       border-radius: 12px;
-      padding: 12px 14px;
+      padding: 11px 14px;
       background: #ffffff;
       color: var(--text);
-      font-size: 0.95rem;
+      font-size: 0.9rem;
     }
 
     .button-row {
       display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
+      gap: 8px;
+      justify-content: flex-end;
     }
 
     button {
       border: 0;
       border-radius: 999px;
-      padding: 12px 18px;
-      font-size: 0.95rem;
+      padding: 11px 16px;
+      font-size: 0.9rem;
       font-weight: 700;
       cursor: pointer;
       transition: transform 140ms ease, opacity 140ms ease, box-shadow 140ms ease;
@@ -166,15 +159,15 @@
     }
 
     .board-layout {
-      margin-top: 24px;
+      margin-top: 18px;
       display: grid;
-      grid-template-columns: minmax(0, 1fr) 320px;
-      gap: 24px;
+      grid-template-columns: minmax(0, 1fr) 280px;
+      gap: 18px;
       align-items: start;
     }
 
     .board-shell {
-      padding: 20px;
+      padding: 18px;
     }
 
     .board {
@@ -237,33 +230,76 @@
     }
 
     .sidebar {
-      padding: 20px;
+      padding: 18px;
       display: grid;
-      gap: 14px;
+      gap: 12px;
+    }
+
+    .player-card {
+      display: grid;
+      grid-template-columns: 54px minmax(0, 1fr);
+      gap: 12px;
+      align-items: center;
+      padding: 14px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.74);
+      border: 1px solid rgba(29, 42, 34, 0.08);
+    }
+
+    .avatar {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: #d9e7d6 center / cover no-repeat;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #29402e;
+      overflow: hidden;
+    }
+
+    .player-meta {
+      min-width: 0;
+      display: grid;
+      gap: 4px;
+    }
+
+    .player-label {
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+
+    .player-name {
+      font-size: 1rem;
+      font-weight: 700;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .badge-row {
       display: flex;
-      gap: 10px;
+      gap: 8px;
       flex-wrap: wrap;
     }
 
     .badge {
-      padding: 9px 12px;
+      padding: 8px 11px;
       border-radius: 999px;
       background: #eef3e8;
       color: #29402e;
-      font-size: 0.9rem;
+      font-size: 0.84rem;
       font-weight: 600;
     }
 
     .message-box {
-      padding: 16px;
+      padding: 14px;
       border-radius: 16px;
       background: #fff;
       border: 1px solid rgba(29, 42, 34, 0.1);
       line-height: 1.55;
-      min-height: 88px;
+      min-height: 74px;
     }
 
     .legend {
@@ -276,7 +312,7 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      padding: 14px 16px;
+      padding: 12px 14px;
       border-radius: 16px;
       background: rgba(255, 255, 255, 0.72);
       border: 1px solid rgba(29, 42, 34, 0.08);
@@ -311,63 +347,62 @@
     }
 
     @media (max-width: 900px) {
-      .hero,
       .board-layout {
         grid-template-columns: 1fr;
+      }
+
+      .topbar {
+        grid-template-columns: 1fr;
+      }
+
+      .compact-status {
+        grid-template-columns: 1fr;
+      }
+
+      .button-row {
+        justify-content: flex-start;
       }
     }
   </style>
 </head>
 <body>
   <div class="app">
-    <section class="hero">
-      <div class="panel panel-main">
-        <h1>LIFF P2P オセロ</h1>
-        <p class="subtitle">
-          Firestore はマッチングとシグナリングのみに使用します。両者が接続した後の手番通信はすべて WebRTC で行い、オセロの判定ロジックは両クライアントで同じように実行されます。
-        </p>
-        <div class="status-strip">
-          <div class="status-card">
-            <div class="status-label">通信方式</div>
+    <section class="panel topbar">
+      <div class="title-group">
+        <div>
+          <h1>LIFF P2P オセロ</h1>
+          <p class="subtitle">
+            Firestore はマッチング専用。接続後の対局は P2P で進みます。
+          </p>
+        </div>
+        <div class="compact-status">
+          <div class="status-pill">
+            <div class="status-label">通信</div>
             <div id="transportStatus" class="status-value">起動中…</div>
           </div>
-          <div class="status-card">
-            <div class="status-label">対戦相手</div>
+          <div class="status-pill">
+            <div class="status-label">相手</div>
             <div id="opponentStatus" class="status-value">待機中…</div>
           </div>
-          <div class="status-card">
+          <div class="status-pill">
             <div class="status-label">手番</div>
             <div id="turnStatus" class="status-value">盤面を準備中…</div>
-          </div>
-          <div class="status-card">
-            <div class="status-label">モード</div>
-            <div id="modeStatus" class="status-value">マッチング</div>
           </div>
         </div>
       </div>
 
-      <aside class="panel meta">
-        <div class="meta-row">
-          <label for="shareUrl">共有 URL</label>
-          <input id="shareUrl" type="text" readonly value="ルーム作成中…">
+      <div class="top-actions">
+        <div class="link-row">
+          <input id="shareUrl" class="share-url" type="text" readonly value="ルーム作成中…">
         </div>
         <div class="button-row">
           <button id="copyLinkButton" class="button-primary" type="button">URL をコピー</button>
           <button id="newRoomButton" class="button-secondary" type="button">新しいルーム</button>
         </div>
-        <div class="meta-row">
-          <label>現在のユーザー</label>
-          <div id="userSummary" class="small">LIFF を初期化中…</div>
-        </div>
-        <div class="meta-row">
-          <label>ルーム</label>
-          <div id="roomSummary" class="small">まだルームはありません</div>
-        </div>
-        <div class="meta-row">
-          <label>ピアID</label>
-          <div id="peerSummary" class="small">シグナリングサーバーに接続中…</div>
-        </div>
-      </aside>
+        <div class="small" id="roomSummary">まだルームはありません</div>
+        <div class="small" id="peerSummary">シグナリングサーバーに接続中…</div>
+        <div class="small" id="modeStatus">マッチング</div>
+      </div>
     </section>
 
     <section class="board-layout">
@@ -376,6 +411,20 @@
       </div>
 
       <aside class="panel sidebar">
+        <div class="player-card">
+          <div id="myAvatar" class="avatar">?</div>
+          <div class="player-meta">
+            <div class="player-label">あなた</div>
+            <div id="userSummary" class="player-name">LIFF を初期化中…</div>
+          </div>
+        </div>
+        <div class="player-card">
+          <div id="opponentAvatar" class="avatar">?</div>
+          <div class="player-meta">
+            <div class="player-label">対戦相手</div>
+            <div id="opponentName" class="player-name">参加待ち</div>
+          </div>
+        </div>
         <div class="badge-row">
           <div id="roleBadge" class="badge">役割: 未確定</div>
           <div id="colorBadge" class="badge">色: 未確定</div>

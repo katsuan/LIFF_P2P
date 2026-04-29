@@ -27,12 +27,23 @@ service cloud.firestore {
         );
     }
 
+    function hasValidProfileFields() {
+      return !('hostDisplayName' in request.resource.data)
+        || (
+          request.resource.data.hostDisplayName is string
+          && request.resource.data.hostPictureUrl is string
+          && request.resource.data.guestDisplayName is string
+          && request.resource.data.guestPictureUrl is string
+        );
+    }
+
     // このデモはクライアント側の LIFF ID を使う構成で、Firebase Auth は前提にしていません。
     // そのため認可よりも、ルームデータの構造検証を優先しています。
     match /rooms/{roomId} {
       allow read: if true;
       allow create, update: if isRoomDocument()
         && hasAllowedOptionalFields()
+        && hasValidProfileFields()
         && hasValidFallbackFields();
       allow delete: if false;
     }

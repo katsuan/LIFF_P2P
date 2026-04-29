@@ -7,6 +7,7 @@
   var app = {
     userId: "",
     displayName: "",
+    pictureUrl: "",
     peerId: "",
     roomId: "",
     roomUrl: "",
@@ -44,6 +45,7 @@
     app.elements.peerSummary = document.getElementById("peerSummary");
     app.elements.transportStatus = document.getElementById("transportStatus");
     app.elements.opponentStatus = document.getElementById("opponentStatus");
+    app.elements.opponentName = document.getElementById("opponentName");
     app.elements.turnStatus = document.getElementById("turnStatus");
     app.elements.modeStatus = document.getElementById("modeStatus");
     app.elements.roleBadge = document.getElementById("roleBadge");
@@ -51,6 +53,8 @@
     app.elements.messageBox = document.getElementById("messageBox");
     app.elements.blackScore = document.getElementById("blackScore");
     app.elements.whiteScore = document.getElementById("whiteScore");
+    app.elements.myAvatar = document.getElementById("myAvatar");
+    app.elements.opponentAvatar = document.getElementById("opponentAvatar");
   }
 
   function setText(element, value) {
@@ -74,6 +78,19 @@
 
   function setModeStatus(value) {
     setText(app.elements.modeStatus, value);
+  }
+
+  function getInitial(name) {
+    return (name || "?").charAt(0).toUpperCase();
+  }
+
+  function setAvatar(element, name, pictureUrl) {
+    if (!element) {
+      return;
+    }
+
+    element.style.backgroundImage = pictureUrl ? ('url("' + pictureUrl + '")') : "none";
+    element.textContent = pictureUrl ? "" : getInitial(name);
   }
 
   function updateRoomUrl(roomId) {
@@ -411,8 +428,34 @@
   }
 
   function updateIdentityUI() {
-    setText(app.elements.userSummary, app.displayName + " (" + app.userId + ")");
+    setText(app.elements.userSummary, app.displayName || "あなた");
     setText(app.elements.peerSummary, app.peerId ? ("ピアID " + app.peerId) : "シグナリングサーバーに接続中…");
+    setAvatar(app.elements.myAvatar, app.displayName, app.pictureUrl);
+  }
+
+  function updateOpponentUI(name, pictureUrl) {
+    setText(app.elements.opponentName, name || "参加待ち");
+    setAvatar(app.elements.opponentAvatar, name || "?", pictureUrl || "");
+  }
+
+  function syncOpponentProfile(roomData) {
+    var opponentName = "";
+    var opponentPictureUrl = "";
+
+    if (!roomData) {
+      updateOpponentUI("", "");
+      return;
+    }
+
+    if (app.role === "host") {
+      opponentName = roomData.guestDisplayName || "";
+      opponentPictureUrl = roomData.guestPictureUrl || "";
+    } else if (app.role === "guest") {
+      opponentName = roomData.hostDisplayName || "";
+      opponentPictureUrl = roomData.hostPictureUrl || "";
+    }
+
+    updateOpponentUI(opponentName, opponentPictureUrl);
   }
 
   function stopRoomSubscription() {
@@ -527,7 +570,7 @@
       renderBoard();
     }
 
-    if (!app.game.message || app.game.message.indexOf("Gameplay now") >= 0) {
+    if (!app.game.message || app.game.message.indexOf("Firestore で行います") >= 0) {
       setMessage("P2P 接続が確立されました。対局中の手番同期では Firestore を使いません。");
     } else {
       setMessage(app.game.message);
@@ -646,8 +689,11 @@
     if (!roomData) {
       setMessage("ルームが見つかりません。");
       setOpponentStatus("利用不可");
+      updateOpponentUI("不明", "");
       return;
     }
+
+    syncOpponentProfile(roomData);
 
     if (roomData.transportMode === "firestore") {
       app.transportMode = "firestore";
@@ -687,7 +733,11 @@
     return {
       roomId: app.roomId,
       hostUserId: app.userId,
+      hostDisplayName: app.displayName,
+      hostPictureUrl: app.pictureUrl || "",
       guestUserId: "",
+      guestDisplayName: "",
+      guestPictureUrl: "",
       hostPeerId: app.peerId,
       guestPeerId: "",
       status: "waiting",
@@ -715,6 +765,7 @@
     app.role = "guest";
     app.myColor = WHITE;
     updateRoleUI();
+    syncOpponentProfile(roomData);
     setTransportStatus("ホスト待機中");
     setModeStatus("マッチング");
     setOpponentStatus("ルーム参加中…");
@@ -723,6 +774,8 @@
 
     return AppFirebase.updateRoom(app.roomId, {
       guestUserId: app.userId,
+      guestDisplayName: app.displayName,
+      guestPictureUrl: app.pictureUrl || "",
       guestPeerId: app.peerId,
       status: "ready"
     }).then(function () {
@@ -735,6 +788,7 @@
     app.role = role;
     app.myColor = role === "host" ? BLACK : WHITE;
     updateRoleUI();
+    syncOpponentProfile(roomData);
     resetGameState();
 
     if (roomData.transportMode === "firestore" && roomData.board) {
@@ -764,15 +818,25 @@
   }
 
   function refreshOwnPeerId(roomData) {
-    if (app.role === "host" && roomData.hostPeerId !== app.peerId) {
+    if (app.role === "host" && (
+        roomData.hostPeerId !== app.peerId ||
+        roomData.hostDisplayName !== app.displayName ||
+        roomData.hostPictureUrl !== (app.pictureUrl || ""))) {
       return AppFirebase.updateRoom(app.roomId, {
-        hostPeerId: app.peerId
+        hostPeerId: app.peerId,
+        hostDisplayName: app.displayName,
+        hostPictureUrl: app.pictureUrl || ""
       });
     }
 
-    if (app.role === "guest" && roomData.guestPeerId !== app.peerId) {
+    if (app.role === "guest" && (
+        roomData.guestPeerId !== app.peerId ||
+        roomData.guestDisplayName !== app.displayName ||
+        roomData.guestPictureUrl !== (app.pictureUrl || ""))) {
       return AppFirebase.updateRoom(app.roomId, {
-        guestPeerId: app.peerId
+        guestPeerId: app.peerId,
+        guestDisplayName: app.displayName,
+        guestPictureUrl: app.pictureUrl || ""
       });
     }
 
@@ -821,6 +885,7 @@
       if (!window.liff || !window.APP_CONFIG.liffId || window.APP_CONFIG.liffId === "YOUR_LIFF_ID") {
         app.userId = getStableDebugUserId();
         app.displayName = "デバッグユーザー";
+        app.pictureUrl = "";
         resolve();
         return;
       }
@@ -834,15 +899,18 @@
         liff.getProfile().then(function (profile) {
           app.userId = profile.userId;
           app.displayName = profile.displayName || "LINE ユーザー";
+          app.pictureUrl = profile.pictureUrl || "";
           resolve();
         }).catch(function () {
           app.userId = getStableDebugUserId();
           app.displayName = "LINE ユーザー";
+          app.pictureUrl = "";
           resolve();
         });
       }).catch(function () {
         app.userId = getStableDebugUserId();
         app.displayName = "デバッグユーザー";
+        app.pictureUrl = "";
         resolve();
       });
     });
