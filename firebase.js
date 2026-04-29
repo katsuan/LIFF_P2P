@@ -1,15 +1,16 @@
 (function (window) {
   window.APP_CONFIG = window.APP_CONFIG || {};
 
-  // ここに LIFF と Firebase の実際の設定値を入れてください。
-  window.APP_CONFIG.liffId = window.APP_CONFIG.liffId || "YOUR_LIFF_ID";
+  // このアプリは script 読み込み版の Firebase SDK を使うため、
+  // ここでは Web アプリ設定値だけを保持します。
+  window.APP_CONFIG.liffId = window.APP_CONFIG.liffId || "2009933824-5iRGM5NO";
   window.APP_CONFIG.firebase = window.APP_CONFIG.firebase || {
-    apiKey: "YOUR_FIREBASE_API_KEY",
-    authDomain: "YOUR_FIREBASE_AUTH_DOMAIN",
-    projectId: "YOUR_FIREBASE_PROJECT_ID",
-    storageBucket: "YOUR_FIREBASE_STORAGE_BUCKET",
-    messagingSenderId: "YOUR_FIREBASE_MESSAGING_SENDER_ID",
-    appId: "YOUR_FIREBASE_APP_ID"
+    apiKey: "AIzaSyDsgzpMW7l9vI0o39OQ5RvBvBk-lh6oNs4",
+    authDomain: "liff-p2p.firebaseapp.com",
+    projectId: "liff-p2p",
+    storageBucket: "liff-p2p.firebasestorage.app",
+    messagingSenderId: "762153086267",
+    appId: "1:762153086267:web:ab5d8b98a35496482c9b1e"
   };
 
   var firebaseApp = null;
