@@ -1361,23 +1361,78 @@
     });
   }
 
-  function handleCopyLink() {
+  function copyRoomUrlToClipboard(successMessage) {
     if (!app.roomUrl) {
-      return;
+      return Promise.resolve(false);
     }
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(app.roomUrl).then(function () {
-        setMessage("共有 URL をクリップボードにコピーしました。");
+      return navigator.clipboard.writeText(app.roomUrl).then(function () {
+        setMessage(successMessage || "共有 URL をクリップボードにコピーしました。");
+        return true;
       }).catch(function () {
         setMessage("コピーに失敗しました。URL を手動でコピーしてください。");
+        return false;
       });
-      return;
     }
 
     app.elements.shareUrl.select();
     document.execCommand("copy");
-    setMessage("共有 URL をクリップボードにコピーしました。");
+    setMessage(successMessage || "共有 URL をクリップボードにコピーしました。");
+    return Promise.resolve(true);
+  }
+
+  function buildShareUrl() {
+    if (!app.roomUrl) {
+      return Promise.resolve("");
+    }
+
+    if (!window.liff || !liff.permanentLink || typeof liff.permanentLink.createUrlBy !== "function") {
+      return Promise.resolve(app.roomUrl);
+    }
+
+    try {
+      return Promise.resolve(liff.permanentLink.createUrlBy(app.roomUrl)).catch(function () {
+        return app.roomUrl;
+      });
+    } catch (error) {
+      return Promise.resolve(app.roomUrl);
+    }
+  }
+
+  function handleCopyLink() {
+    buildShareUrl().then(function (shareUrl) {
+      if (shareUrl) {
+        app.roomUrl = shareUrl;
+        app.elements.shareUrl.value = shareUrl;
+      }
+
+      if (window.liff &&
+          typeof liff.isApiAvailable === "function" &&
+          liff.isApiAvailable("shareTargetPicker") &&
+          typeof liff.shareTargetPicker === "function") {
+        return liff.shareTargetPicker([
+          {
+            type: "text",
+            text: "オセロで対戦しよう\n" + (shareUrl || app.roomUrl)
+          }
+        ]).then(function (result) {
+          if (result) {
+            setMessage("LINE で招待メッセージを送信しました。");
+            return true;
+          }
+
+          setMessage("招待がキャンセルされました。必要であれば URL を共有してください。");
+          return false;
+        }).catch(function () {
+          return copyRoomUrlToClipboard("LINE 共有に失敗したため、招待 URL をコピーしました。");
+        });
+      }
+
+      return copyRoomUrlToClipboard("LINE 共有に未対応のため、招待 URL をコピーしました。");
+    }).catch(function () {
+      return copyRoomUrlToClipboard("招待 URL をクリップボードにコピーしました。");
+    });
   }
 
   function handleNewRoom() {
