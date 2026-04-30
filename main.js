@@ -53,6 +53,8 @@
     app.elements.shareUrl = document.getElementById("shareUrl");
     app.elements.copyLinkButton = document.getElementById("copyLinkButton");
     app.elements.newRoomButton = document.getElementById("newRoomButton");
+    app.elements.myCard = document.getElementById("myCard");
+    app.elements.opponentCard = document.getElementById("opponentCard");
     app.elements.userSummary = document.getElementById("userSummary");
     app.elements.roomSummary = document.getElementById("roomSummary");
     app.elements.peerSummary = document.getElementById("peerSummary");
@@ -63,7 +65,6 @@
     app.elements.opponentLabel = document.getElementById("opponentLabel");
     app.elements.myScore = document.getElementById("myScore");
     app.elements.opponentScore = document.getElementById("opponentScore");
-    app.elements.turnStatus = document.getElementById("turnStatus");
     app.elements.modeStatus = document.getElementById("modeStatus");
     app.elements.roleBadge = document.getElementById("roleBadge");
     app.elements.messageBox = document.getElementById("messageBox");
@@ -442,12 +443,7 @@
 
     setText(app.elements.myScore, String(scoreForColor(counts, app.myColor)));
     setText(app.elements.opponentScore, String(scoreForColor(counts, app.myColor ? getOpponent(app.myColor) : "")));
-
-    if (!app.game.currentTurn) {
-      setText(app.elements.turnStatus, app.game.winner ? (app.game.winner + "の勝ち") : "ゲーム終了");
-    } else {
-      setText(app.elements.turnStatus, colorName(app.game.currentTurn) + "の手番");
-    }
+    updateTurnHighlight();
 
     for (i = 0; i < buttons.length; i += 1) {
       button = buttons[i];
@@ -469,6 +465,21 @@
         button.disabled = true;
         button.innerHTML = '<span class="disc ' + (cellValue === BLACK ? "black" : "white") + '"></span>';
       }
+    }
+  }
+
+  function updateTurnHighlight() {
+    var opponentColor = app.myColor ? getOpponent(app.myColor) : "";
+    var currentTurn = app.game.currentTurn;
+    var myTurn = !!currentTurn && currentTurn === app.myColor;
+    var opponentTurn = !!currentTurn && currentTurn === opponentColor;
+
+    if (app.elements.myCard) {
+      app.elements.myCard.classList.toggle("active-turn", myTurn);
+    }
+
+    if (app.elements.opponentCard) {
+      app.elements.opponentCard.classList.toggle("active-turn", opponentTurn);
     }
   }
 
