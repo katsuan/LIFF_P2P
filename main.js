@@ -62,11 +62,11 @@
     app.elements.opponentStatus = document.getElementById("opponentStatus");
     app.elements.opponentName = document.getElementById("opponentName");
     app.elements.myLabel = document.getElementById("myLabel");
+    app.elements.myStatus = document.getElementById("myStatus");
     app.elements.opponentLabel = document.getElementById("opponentLabel");
     app.elements.myScore = document.getElementById("myScore");
     app.elements.opponentScore = document.getElementById("opponentScore");
     app.elements.modeStatus = document.getElementById("modeStatus");
-    app.elements.roleBadge = document.getElementById("roleBadge");
     app.elements.messageBox = document.getElementById("messageBox");
     app.elements.myAvatar = document.getElementById("myAvatar");
     app.elements.opponentAvatar = document.getElementById("opponentAvatar");
@@ -596,8 +596,8 @@
       opponentLabel += " (" + colorName(getOpponent(app.desiredHostColor)) + "予定)";
     }
 
-    setText(app.elements.roleBadge, "役割: " + roleName(app.role));
     setText(app.elements.myLabel, myLabel);
+    setText(app.elements.myStatus, "役割: " + roleName(app.role));
     setText(app.elements.opponentLabel, opponentLabel);
     updateHostSetupUI();
     updateRematchUI();
