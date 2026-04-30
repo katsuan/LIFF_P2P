@@ -136,7 +136,7 @@
   function updateRoomUrl(roomId) {
     app.roomId = roomId;
     app.roomUrl = window.location.origin + window.location.pathname + "?room=" + encodeURIComponent(roomId);
-    app.elements.shareUrl.value = app.roomUrl;
+    app.elements.shareUrl.value = roomId;
     setText(app.elements.roomSummary, "ルーム " + roomId);
     window.history.replaceState({}, "", "?room=" + encodeURIComponent(roomId));
   }
@@ -1361,13 +1361,15 @@
     });
   }
 
-  function copyRoomUrlToClipboard(successMessage) {
-    if (!app.roomUrl) {
+  function copyTextToClipboard(text, successMessage) {
+    var tempInput;
+
+    if (!text) {
       return Promise.resolve(false);
     }
 
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      return navigator.clipboard.writeText(app.roomUrl).then(function () {
+      return navigator.clipboard.writeText(text).then(function () {
         setMessage(successMessage || "共有 URL をクリップボードにコピーしました。");
         return true;
       }).catch(function () {
@@ -1376,8 +1378,15 @@
       });
     }
 
-    app.elements.shareUrl.select();
+    tempInput = document.createElement("textarea");
+    tempInput.value = text;
+    tempInput.setAttribute("readonly", "readonly");
+    tempInput.style.position = "absolute";
+    tempInput.style.left = "-9999px";
+    document.body.appendChild(tempInput);
+    tempInput.select();
     document.execCommand("copy");
+    document.body.removeChild(tempInput);
     setMessage(successMessage || "共有 URL をクリップボードにコピーしました。");
     return Promise.resolve(true);
   }
@@ -1402,11 +1411,6 @@
 
   function handleCopyLink() {
     buildShareUrl().then(function (shareUrl) {
-      if (shareUrl) {
-        app.roomUrl = shareUrl;
-        app.elements.shareUrl.value = shareUrl;
-      }
-
       if (window.liff &&
           typeof liff.isApiAvailable === "function" &&
           liff.isApiAvailable("shareTargetPicker") &&
@@ -1425,13 +1429,13 @@
           setMessage("招待がキャンセルされました。必要であれば URL を共有してください。");
           return false;
         }).catch(function () {
-          return copyRoomUrlToClipboard("LINE 共有に失敗したため、招待 URL をコピーしました。");
+          return copyTextToClipboard(shareUrl || app.roomUrl, "LINE 共有に失敗したため、招待 URL をコピーしました。");
         });
       }
 
-      return copyRoomUrlToClipboard("LINE 共有に未対応のため、招待 URL をコピーしました。");
+      return copyTextToClipboard(shareUrl || app.roomUrl, "LINE 共有に未対応のため、招待 URL をコピーしました。");
     }).catch(function () {
-      return copyRoomUrlToClipboard("招待 URL をクリップボードにコピーしました。");
+      return copyTextToClipboard(app.roomUrl, "招待 URL をクリップボードにコピーしました。");
     });
   }
 
