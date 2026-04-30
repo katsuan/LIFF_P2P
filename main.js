@@ -15,6 +15,7 @@
     peerId: "",
     roomId: "",
     roomUrl: "",
+    joinRequested: false,
     role: "",
     myColor: "",
     opponentMode: "human",
@@ -27,6 +28,9 @@
     p2pTimer: null,
     reconnectTimer: null,
     reconnectRetryTimer: null,
+    reconnectNoticeTimer: null,
+    reconnectDeadline: 0,
+    reconnectReason: "",
     reconnecting: false,
     resultOverlayDismissed: false,
     comTimer: null,
@@ -59,14 +63,13 @@
     app.elements.newRoomButton = document.getElementById("newRoomButton");
     app.elements.myCard = document.getElementById("myCard");
     app.elements.opponentCard = document.getElementById("opponentCard");
+    app.elements.reconnectNotice = document.getElementById("reconnectNotice");
     app.elements.resultOverlay = document.getElementById("resultOverlay");
     app.elements.resultWord = document.getElementById("resultWord");
     app.elements.resultCaption = document.getElementById("resultCaption");
     app.elements.resultScoreline = document.getElementById("resultScoreline");
     app.elements.resultPrimaryButton = document.getElementById("resultPrimaryButton");
     app.elements.resultSecondaryButton = document.getElementById("resultSecondaryButton");
-    app.elements.overlayMyName = document.getElementById("overlayMyName");
-    app.elements.overlayOpponentName = document.getElementById("overlayOpponentName");
     app.elements.userSummary = document.getElementById("userSummary");
     app.elements.roomSummary = document.getElementById("roomSummary");
     app.elements.peerSummary = document.getElementById("peerSummary");
@@ -167,7 +170,9 @@
     app.roomUrl = window.location.origin + window.location.pathname + "?room=" + encodeURIComponent(roomId);
     app.elements.shareUrl.value = roomId;
     setText(app.elements.roomSummary, "ルーム " + roomId);
-    window.history.replaceState({}, "", "?room=" + encodeURIComponent(roomId));
+    window.history.replaceState({}, "", app.joinRequested ?
+      ("?room=" + encodeURIComponent(roomId) + "&join=1") :
+      ("?room=" + encodeURIComponent(roomId)));
   }
 
   function colorName(color) {
@@ -603,6 +608,9 @@
   function resetGameState() {
     app.game = createFreshGame();
     app.resultOverlayDismissed = false;
+    app.reconnectReason = "";
+    app.reconnectDeadline = 0;
+    updateReconnectNotice();
     app.initializedGame = true;
     renderBoard();
   }
@@ -631,6 +639,44 @@
       window.clearTimeout(app.reconnectRetryTimer);
       app.reconnectRetryTimer = null;
     }
+  }
+
+  function stopReconnectNoticeTimer() {
+    if (app.reconnectNoticeTimer) {
+      window.clearTimeout(app.reconnectNoticeTimer);
+      app.reconnectNoticeTimer = null;
+    }
+  }
+
+  function updateReconnectNotice() {
+    var remainingMs;
+    var remainingSeconds;
+    var text;
+
+    if (!app.elements.reconnectNotice) {
+      return;
+    }
+
+    if (!app.reconnecting) {
+      stopReconnectNoticeTimer();
+      setHidden(app.elements.reconnectNotice, true);
+      return;
+    }
+
+    remainingMs = Math.max(0, app.reconnectDeadline - Date.now());
+    remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
+    text = "相手との接続が切れました。今は再接続を試しています。";
+    text += " あと" + remainingSeconds + "秒待ち、戻れなければ COM に切り替わります。";
+
+    if (app.reconnectReason) {
+      text = app.reconnectReason + " " + text;
+    }
+
+    setHidden(app.elements.reconnectNotice, false);
+    setText(app.elements.reconnectNotice, text);
+
+    stopReconnectNoticeTimer();
+    app.reconnectNoticeTimer = window.setTimeout(updateReconnectNotice, 250);
   }
 
   function hasPlayedMove() {
@@ -920,8 +966,11 @@
     var hostColor = app.currentHostColor || app.desiredHostColor || "";
 
     app.reconnecting = false;
+    app.reconnectDeadline = 0;
+    app.reconnectReason = "";
     stopReconnectTimer();
     stopReconnectRetryTimer();
+    stopReconnectNoticeTimer();
     stopP2PTimer();
     stopRoomSubscription();
     clearRematchState();
@@ -945,6 +994,7 @@
     setMessage(reason + " 相手の代わりに COM が続けます。");
     renderBoard();
     maybeScheduleComTurn();
+    updateReconnectNotice();
   }
 
   function applyMatchSettings(hostColor, isRematch) {
@@ -1030,6 +1080,8 @@
 
     // Peer IDs are stable per user+room, so reconnect can retry without extra Firestore writes.
     app.reconnecting = true;
+    app.reconnectReason = reason;
+    app.reconnectDeadline = Date.now() + RECONNECT_TIMEOUT_MS;
     app.pendingPeerTarget = "";
     app.transportMode = "reconnecting";
     stopP2PTimer();
@@ -1039,6 +1091,7 @@
     setModeStatus("P2P 再接続");
     setOpponentStatus("再接続待ち…");
     setMessage(reason + " 同じルームで再接続を試みます。");
+    updateReconnectNotice();
     updateRematchUI();
 
     if (app.role === "host" && app.roomData && app.roomData.guestPeerId) {
@@ -1061,8 +1114,11 @@
 
     // Once P2P is ready, gameplay is authoritative on the peers and Firestore is unsubscribed.
     app.reconnecting = false;
+    app.reconnectDeadline = 0;
+    app.reconnectReason = "";
     stopReconnectTimer();
     stopReconnectRetryTimer();
+    stopReconnectNoticeTimer();
     app.opponentMode = "human";
     app.transportMode = "p2p";
     stopP2PTimer();
@@ -1070,6 +1126,7 @@
     setTransportStatus("WebRTC 接続済み");
     setModeStatus("P2P 対戦");
     setOpponentStatus("接続済み");
+    updateReconnectNotice();
 
     if (!app.initializedGame) {
       resetGameState();
@@ -1426,6 +1483,13 @@
   function loadOrCreateRoom() {
     return AppFirebase.getRoom(app.roomId).then(function (roomData) {
       if (!roomData) {
+        if (app.joinRequested) {
+          setTransportStatus("未接続");
+          setOpponentStatus("ルームなし");
+          setMessage("指定したルームIDが見つかりません。入力内容を確認してください。");
+          return;
+        }
+
         return createHostRoom(app.roomId);
       }
 
@@ -1456,6 +1520,7 @@
   function prepareRoomId() {
     var params = new URLSearchParams(window.location.search);
     var requestedRoomId = params.get("room");
+    app.joinRequested = params.get("join") === "1";
 
     updateRoomUrl(requestedRoomId || generateId("room"));
   }
@@ -1614,6 +1679,7 @@
   }
 
   function handleNewRoom() {
+    app.joinRequested = false;
     window.location.href = window.location.pathname;
   }
 
@@ -1630,7 +1696,7 @@
       return;
     }
 
-    window.location.href = window.location.pathname + "?room=" + encodeURIComponent(nextRoomId);
+    window.location.href = window.location.pathname + "?room=" + encodeURIComponent(nextRoomId) + "&join=1";
   }
 
   function handleHostColorChange(color) {
@@ -1681,7 +1747,6 @@
     var canSwitch = app.role === "host" &&
       !hasPlayedMove() &&
       !app.game.winner &&
-      (!app.roomData || !app.roomData.guestUserId) &&
       !AppPeer.isConnected();
 
     if (app.role !== "host" || mode === app.opponentMode) {

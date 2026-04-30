@@ -163,6 +163,16 @@
       gap: 12px;
     }
 
+    .status-banner {
+      padding: 12px 14px;
+      border-radius: 16px;
+      background: rgba(214, 109, 47, 0.12);
+      border: 1px solid rgba(214, 109, 47, 0.28);
+      color: #6f3916;
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+
     .board-meta {
       display: flex;
       flex-wrap: wrap;
@@ -690,19 +700,13 @@
             </div>
           </div>
         </div>
+        <div id="reconnectNotice" class="status-banner hidden">
+          接続が切れました。再接続を試しています。
+        </div>
         <div class="board-stage">
           <div id="board" class="board" aria-label="オセロ盤"></div>
           <div id="resultOverlay" class="result-overlay hidden">
             <div id="resultCard" class="result-card">
-              <div class="result-vs">
-                <div class="result-player">
-                  <div id="overlayMyName" class="result-name">私</div>
-                </div>
-                <div class="result-versus">VS</div>
-                <div class="result-player">
-                  <div id="overlayOpponentName" class="result-name">相手</div>
-                </div>
-              </div>
               <div id="resultWord" class="result-word">WIN</div>
               <div id="resultCaption" class="result-caption">このルームで続けますか？</div>
               <div id="resultScoreline" class="result-scoreline">0 - 0</div>
