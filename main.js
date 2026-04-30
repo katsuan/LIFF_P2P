@@ -10,6 +10,8 @@
     userId: "",
     displayName: "",
     pictureUrl: "",
+    opponentDisplayName: "",
+    opponentPictureUrl: "",
     peerId: "",
     roomId: "",
     roomUrl: "",
@@ -26,6 +28,7 @@
     reconnectTimer: null,
     reconnectRetryTimer: null,
     reconnecting: false,
+    resultOverlayDismissed: false,
     comTimer: null,
     transportMode: "matchmaking",
     rematch: {
@@ -56,6 +59,16 @@
     app.elements.newRoomButton = document.getElementById("newRoomButton");
     app.elements.myCard = document.getElementById("myCard");
     app.elements.opponentCard = document.getElementById("opponentCard");
+    app.elements.resultOverlay = document.getElementById("resultOverlay");
+    app.elements.resultWord = document.getElementById("resultWord");
+    app.elements.resultCaption = document.getElementById("resultCaption");
+    app.elements.resultScoreline = document.getElementById("resultScoreline");
+    app.elements.resultPrimaryButton = document.getElementById("resultPrimaryButton");
+    app.elements.resultSecondaryButton = document.getElementById("resultSecondaryButton");
+    app.elements.overlayMyAvatar = document.getElementById("overlayMyAvatar");
+    app.elements.overlayMyName = document.getElementById("overlayMyName");
+    app.elements.overlayOpponentAvatar = document.getElementById("overlayOpponentAvatar");
+    app.elements.overlayOpponentName = document.getElementById("overlayOpponentName");
     app.elements.userSummary = document.getElementById("userSummary");
     app.elements.roomSummary = document.getElementById("roomSummary");
     app.elements.peerSummary = document.getElementById("peerSummary");
@@ -120,6 +133,14 @@
     } else {
       element.classList.remove("hidden");
     }
+  }
+
+  function showElement(element, shouldShow) {
+    if (!element) {
+      return;
+    }
+
+    element.style.display = shouldShow ? "" : "none";
   }
 
   function getInitial(name) {
@@ -445,6 +466,7 @@
     setText(app.elements.myScore, String(scoreForColor(counts, app.myColor)));
     setText(app.elements.opponentScore, String(scoreForColor(counts, app.myColor ? getOpponent(app.myColor) : "")));
     updateTurnHighlight();
+    updateResultOverlay(counts);
 
     for (i = 0; i < buttons.length; i += 1) {
       button = buttons[i];
@@ -467,6 +489,96 @@
         button.innerHTML = '<span class="disc ' + (cellValue === BLACK ? "black" : "white") + '"></span>';
       }
     }
+  }
+
+  function getResultOutcome() {
+    if (!app.game.winner) {
+      return "";
+    }
+
+    if (app.game.winner === "引き分け") {
+      return "draw";
+    }
+
+    if (app.myColor && colorName(app.myColor) === app.game.winner) {
+      return "win";
+    }
+
+    return "lose";
+  }
+
+  function hideResultOverlay() {
+    app.resultOverlayDismissed = true;
+
+    if (!app.elements.resultOverlay) {
+      return;
+    }
+
+    setHidden(app.elements.resultOverlay, true);
+    app.elements.resultOverlay.classList.remove("visible");
+    app.elements.resultOverlay.classList.remove("result-win");
+    app.elements.resultOverlay.classList.remove("result-draw");
+    app.elements.resultOverlay.classList.remove("result-lose");
+  }
+
+  function updateResultOverlay(counts) {
+    var showOverlay = !!app.game.winner && !app.resultOverlayDismissed;
+    var outcome = getResultOutcome();
+    var outgoingPending = !!app.rematch.outgoing;
+    var incomingPending = !!app.rematch.incoming;
+    var primaryText = "はい";
+    var secondaryText = "いいえ";
+    var caption = "このルームで続けてもう一戦しますか？";
+    var word = "RESULT";
+
+    if (!app.elements.resultOverlay) {
+      return;
+    }
+
+    if (!showOverlay) {
+      setHidden(app.elements.resultOverlay, true);
+      app.elements.resultOverlay.classList.remove("visible");
+      app.elements.resultOverlay.classList.remove("result-win");
+      app.elements.resultOverlay.classList.remove("result-draw");
+      app.elements.resultOverlay.classList.remove("result-lose");
+      return;
+    }
+
+    if (outcome === "win") {
+      word = "WIN";
+    } else if (outcome === "draw") {
+      word = "DRAW";
+    } else if (outcome === "lose") {
+      word = "LOSE";
+    }
+
+    if (incomingPending) {
+      caption = "相手が再戦を希望しています。続けますか？";
+    } else if (outgoingPending) {
+      caption = "再戦リクエストを送信しました。返答を待っています。";
+      primaryText = "送信中";
+      secondaryText = "閉じる";
+    } else if (app.transportMode === "com") {
+      caption = "COM と続けてもう一戦しますか？";
+    }
+
+    setHidden(app.elements.resultOverlay, false);
+    app.elements.resultOverlay.classList.add("visible");
+    app.elements.resultOverlay.classList.toggle("result-win", outcome === "win");
+    app.elements.resultOverlay.classList.toggle("result-draw", outcome === "draw");
+    app.elements.resultOverlay.classList.toggle("result-lose", outcome === "lose");
+    setText(app.elements.resultWord, word);
+    setText(app.elements.resultCaption, caption);
+    setText(app.elements.resultScoreline, String(scoreForColor(counts, app.myColor)) + " - " + String(scoreForColor(counts, app.myColor ? getOpponent(app.myColor) : "")));
+    setText(app.elements.overlayMyName, app.displayName || "あなた");
+    setText(app.elements.overlayOpponentName, app.opponentDisplayName || (isComMode() ? "COM" : "対戦相手"));
+    setAvatar(app.elements.overlayMyAvatar, app.displayName || "あなた", app.pictureUrl || "");
+    setAvatar(app.elements.overlayOpponentAvatar, app.opponentDisplayName || "対戦相手", app.opponentPictureUrl || "");
+    setText(app.elements.resultPrimaryButton, primaryText);
+    setText(app.elements.resultSecondaryButton, secondaryText);
+    app.elements.resultPrimaryButton.disabled = outgoingPending;
+    showElement(app.elements.resultPrimaryButton, true);
+    showElement(app.elements.resultSecondaryButton, true);
   }
 
   function updateTurnHighlight() {
