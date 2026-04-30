@@ -778,7 +778,7 @@
     }
 
     hideResultOverlay();
-    setMessage("この試合を終了しました。同じルームで再開する場合は「はい」を選んでください。");
+    setMessage("この試合を終了しました。続ける場合は新しいルームを作成するか、ページを開き直してください。");
   }
 
   function chooseComMove() {
