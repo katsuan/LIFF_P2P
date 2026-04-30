@@ -248,17 +248,10 @@
     }
 
     .result-avatar {
-      width: 58px;
-      height: 58px;
-      border-radius: 50%;
-      background: #d9e7d6 center / cover no-repeat;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      color: #29402e;
-      overflow: hidden;
-      border: 3px solid rgba(29, 42, 34, 0.08);
+      width: 54px;
+      height: 54px;
+      border: 0;
+      box-shadow: 0 6px 14px rgba(29, 42, 34, 0.12);
     }
 
     .result-name {
@@ -651,8 +644,8 @@
       }
 
       .result-avatar {
-        width: 48px;
-        height: 48px;
+        width: 40px;
+        height: 40px;
       }
     }
   </style>
@@ -714,12 +707,12 @@
             <div id="resultCard" class="result-card">
               <div class="result-vs">
                 <div class="result-player">
-                  <div id="overlayMyAvatar" class="result-avatar">?</div>
+                  <div id="overlayMyAvatar" class="avatar result-avatar">?</div>
                   <div id="overlayMyName" class="result-name">あなた</div>
                 </div>
                 <div class="result-versus">VS</div>
                 <div class="result-player">
-                  <div id="overlayOpponentAvatar" class="result-avatar">?</div>
+                  <div id="overlayOpponentAvatar" class="avatar result-avatar">?</div>
                   <div id="overlayOpponentName" class="result-name">対戦相手</div>
                 </div>
               </div>
@@ -747,18 +740,6 @@
             <button id="hostWhiteButton" class="button-chip" type="button">ホストが白</button>
           </div>
           <div id="controlHint" class="small">接続後にこの設定を相手へ同期します。</div>
-        </div>
-        <div id="rematchPanel" class="control-panel hidden">
-          <div class="control-title">再戦</div>
-          <div id="rematchActions" class="control-actions">
-            <button id="sameRematchButton" class="button-primary" type="button">同じ色で再戦</button>
-            <button id="swapRematchButton" class="button-secondary" type="button">色を入れ替えて再戦</button>
-          </div>
-          <div id="rematchDecision" class="control-actions hidden">
-            <button id="acceptRematchButton" class="button-primary" type="button">再戦する</button>
-            <button id="rejectRematchButton" class="button-ghost" type="button">今回は終了</button>
-          </div>
-          <div id="rematchHint" class="small">ゲーム終了後に同じルームで再戦できます。</div>
         </div>
         <div id="messageBox" class="message-box">
           LIFF、Firebase、PeerJS の初期化を待っています。

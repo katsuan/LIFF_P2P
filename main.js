@@ -90,14 +90,6 @@
     app.elements.hostBlackButton = document.getElementById("hostBlackButton");
     app.elements.hostWhiteButton = document.getElementById("hostWhiteButton");
     app.elements.controlHint = document.getElementById("controlHint");
-    app.elements.rematchPanel = document.getElementById("rematchPanel");
-    app.elements.rematchActions = document.getElementById("rematchActions");
-    app.elements.rematchDecision = document.getElementById("rematchDecision");
-    app.elements.sameRematchButton = document.getElementById("sameRematchButton");
-    app.elements.swapRematchButton = document.getElementById("swapRematchButton");
-    app.elements.acceptRematchButton = document.getElementById("acceptRematchButton");
-    app.elements.rejectRematchButton = document.getElementById("rejectRematchButton");
-    app.elements.rematchHint = document.getElementById("rematchHint");
   }
 
   function setText(element, value) {
@@ -598,6 +590,7 @@
 
   function resetGameState() {
     app.game = createFreshGame();
+    app.resultOverlayDismissed = false;
     app.initializedGame = true;
     renderBoard();
   }
@@ -666,35 +659,7 @@
   }
 
   function updateRematchUI() {
-    var showPanel = !app.reconnecting &&
-      app.game.winner &&
-      ((app.transportMode === "p2p" && AppPeer.isConnected()) || app.transportMode === "com");
-    var decisionText = "ゲーム終了後に同じルームで再戦できます。";
-
-    setHidden(app.elements.rematchPanel, !showPanel);
-    if (!showPanel) {
-      return;
-    }
-
-    if (app.transportMode === "com") {
-      setHidden(app.elements.rematchActions, false);
-      setHidden(app.elements.rematchDecision, true);
-      setText(app.elements.rematchHint, "COM と同じルームで再戦できます。");
-      return;
-    }
-
-    setHidden(app.elements.rematchActions, !!app.rematch.incoming || !!app.rematch.outgoing);
-    setHidden(app.elements.rematchDecision, !app.rematch.incoming);
-
-    if (app.rematch.incoming) {
-      decisionText = app.rematch.incoming.swapColors ?
-        "相手が色を入れ替えて再戦を希望しています。" :
-        "相手が同じ色での再戦を希望しています。";
-    } else if (app.rematch.outgoing) {
-      decisionText = "再戦リクエストを送信しました。返答を待っています。";
-    }
-
-    setText(app.elements.rematchHint, decisionText);
+    updateResultOverlay(countDiscs(app.game.board));
   }
 
   function setCardColorClass(element, color) {
@@ -744,11 +709,17 @@
     setText(app.elements.userSummary, app.displayName || "あなた");
     setText(app.elements.peerSummary, app.peerId ? ("ピアID " + app.peerId) : "シグナリングサーバーに接続中…");
     setAvatar(app.elements.myAvatar, app.displayName, app.pictureUrl);
+    if (app.game.winner) {
+      updateResultOverlay(countDiscs(app.game.board));
+    }
   }
 
   function updateOpponentUI(name, pictureUrl) {
+    app.opponentDisplayName = name || "参加待ち";
+    app.opponentPictureUrl = pictureUrl || "";
     setText(app.elements.opponentName, name || "参加待ち");
     setAvatar(app.elements.opponentAvatar, name || "?", pictureUrl || "");
+    renderBoard();
   }
 
   function sendProfileSnapshot() {
@@ -762,6 +733,40 @@
       displayName: app.displayName || "LINE ユーザー",
       pictureUrl: app.pictureUrl || ""
     });
+  }
+
+  function handleResultPrimaryAction() {
+    if (!app.game.winner) {
+      return;
+    }
+
+    app.resultOverlayDismissed = false;
+
+    if (app.rematch.incoming) {
+      acceptRematch();
+      return;
+    }
+
+    if (app.rematch.outgoing) {
+      return;
+    }
+
+    requestRematch(false);
+  }
+
+  function handleResultSecondaryAction() {
+    if (!app.game.winner) {
+      return;
+    }
+
+    if (app.rematch.incoming) {
+      rejectRematch();
+      app.resultOverlayDismissed = true;
+      return;
+    }
+
+    hideResultOverlay();
+    setMessage("この試合を終了しました。同じルームで再開する場合は「はい」を選んでください。");
   }
 
   function chooseComMove() {
@@ -889,6 +894,9 @@
     app.game.currentTurn = data.currentTurn || "";
     app.game.version = incomingVersion;
     app.game.winner = data.winner || "";
+    if (app.game.winner) {
+      app.resultOverlayDismissed = false;
+    }
     app.game.message = data.message || app.game.message;
     renderBoard();
     updateRoleUI();
@@ -932,6 +940,7 @@
     app.desiredHostColor = hostColor;
     app.matchConfigured = true;
     app.myColor = app.role === "host" ? hostColor : getOpponent(hostColor);
+    app.resultOverlayDismissed = false;
     clearRematchState();
     updateRoleUI();
     resetGameState();
@@ -1116,6 +1125,7 @@
       swapColors: !!swapColors
     };
     app.rematch.incoming = null;
+    app.resultOverlayDismissed = false;
     updateRematchUI();
 
     try {
@@ -1159,6 +1169,9 @@
       color: color
     };
     moveMessage = resolveTurnAfterMove(color);
+    if (app.game.winner) {
+      app.resultOverlayDismissed = false;
+    }
     setMessage(moveMessage);
     renderBoard();
     updateRematchUI();
@@ -1234,6 +1247,7 @@
         swapColors: !!data.swapColors
       };
       app.rematch.outgoing = null;
+      app.resultOverlayDismissed = false;
       updateRematchUI();
       setMessage(data.swapColors ?
         "相手が色を入れ替えて再戦したいようです。" :
@@ -1252,6 +1266,7 @@
 
     if (data.type === "rematch_reject") {
       clearRematchState();
+      app.resultOverlayDismissed = false;
       updateRematchUI();
       setMessage("相手は再戦しませんでした。");
       return;
@@ -1713,6 +1728,7 @@
       swapColors: !!app.rematch.incoming.swapColors
     };
     app.rematch.incoming = null;
+    app.resultOverlayDismissed = false;
     updateRematchUI();
     setMessage("再戦を承認しました。ホストの開始を待っています。");
   }
@@ -1723,6 +1739,7 @@
     }
 
     clearRematchState();
+    app.resultOverlayDismissed = true;
     updateRematchUI();
 
     try {
@@ -1742,6 +1759,8 @@
     createBoardUI();
     renderBoard();
 
+    app.elements.resultPrimaryButton.addEventListener("click", handleResultPrimaryAction);
+    app.elements.resultSecondaryButton.addEventListener("click", handleResultSecondaryAction);
     app.elements.joinRoomButton.addEventListener("click", handleJoinRoom);
     app.elements.copyLinkButton.addEventListener("click", handleCopyLink);
     app.elements.newRoomButton.addEventListener("click", handleNewRoom);
@@ -1762,14 +1781,6 @@
     app.elements.hostWhiteButton.addEventListener("click", function () {
       handleHostColorChange(WHITE);
     });
-    app.elements.sameRematchButton.addEventListener("click", function () {
-      requestRematch(false);
-    });
-    app.elements.swapRematchButton.addEventListener("click", function () {
-      requestRematch(true);
-    });
-    app.elements.acceptRematchButton.addEventListener("click", acceptRematch);
-    app.elements.rejectRematchButton.addEventListener("click", rejectRematch);
     updateRoleUI();
     updateOpponentUI("", "");
 
