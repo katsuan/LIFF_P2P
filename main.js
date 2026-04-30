@@ -51,6 +51,7 @@
   function cacheElements() {
     app.elements.board = document.getElementById("board");
     app.elements.shareUrl = document.getElementById("shareUrl");
+    app.elements.joinRoomButton = document.getElementById("joinRoomButton");
     app.elements.copyLinkButton = document.getElementById("copyLinkButton");
     app.elements.newRoomButton = document.getElementById("newRoomButton");
     app.elements.myCard = document.getElementById("myCard");
@@ -1477,6 +1478,22 @@
     window.location.href = window.location.pathname;
   }
 
+  function handleJoinRoom() {
+    var nextRoomId = String(app.elements.shareUrl.value || "").trim();
+
+    if (!nextRoomId || nextRoomId === "ルーム作成中…") {
+      setMessage("参加したいルームIDを入力してください。");
+      return;
+    }
+
+    if (nextRoomId === app.roomId) {
+      setMessage("現在このルームを開いています。");
+      return;
+    }
+
+    window.location.href = window.location.pathname + "?room=" + encodeURIComponent(nextRoomId);
+  }
+
   function handleHostColorChange(color) {
     if (app.role !== "host") {
       return;
@@ -1613,8 +1630,14 @@
     createBoardUI();
     renderBoard();
 
+    app.elements.joinRoomButton.addEventListener("click", handleJoinRoom);
     app.elements.copyLinkButton.addEventListener("click", handleCopyLink);
     app.elements.newRoomButton.addEventListener("click", handleNewRoom);
+    app.elements.shareUrl.addEventListener("keydown", function (event) {
+      if (event.key === "Enter") {
+        handleJoinRoom();
+      }
+    });
     app.elements.humanOpponentButton.addEventListener("click", function () {
       setOpponentMode("human");
     });

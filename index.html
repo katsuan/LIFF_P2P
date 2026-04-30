@@ -80,6 +80,12 @@
       min-width: 240px;
     }
 
+    .field-label {
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--muted);
+    }
+
     .link-row {
       display: flex;
       gap: 8px;
@@ -175,6 +181,138 @@
       border-radius: 22px;
       overflow: hidden;
       box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .board-stage {
+      position: relative;
+    }
+
+    .result-overlay {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: rgba(18, 28, 22, 0.42);
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 180ms ease;
+    }
+
+    .result-overlay.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .result-card {
+      width: min(100%, 420px);
+      padding: 24px 22px;
+      border-radius: 24px;
+      background: rgba(255, 250, 240, 0.96);
+      box-shadow: 0 20px 48px rgba(15, 22, 18, 0.24);
+      display: grid;
+      gap: 16px;
+      text-align: center;
+      transform: translateY(8px) scale(0.96);
+      transition: transform 220ms ease;
+    }
+
+    .result-overlay.visible .result-card {
+      transform: translateY(0) scale(1);
+    }
+
+    .result-overlay.result-win .result-card {
+      box-shadow: 0 22px 54px rgba(214, 109, 47, 0.26);
+    }
+
+    .result-overlay.result-lose .result-card {
+      box-shadow: 0 22px 54px rgba(29, 42, 34, 0.2);
+    }
+
+    .result-overlay.result-draw .result-card {
+      box-shadow: 0 22px 54px rgba(96, 108, 98, 0.2);
+    }
+
+    .result-vs {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .result-player {
+      display: grid;
+      justify-items: center;
+      gap: 8px;
+    }
+
+    .result-avatar {
+      width: 58px;
+      height: 58px;
+      border-radius: 50%;
+      background: #d9e7d6 center / cover no-repeat;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: #29402e;
+      overflow: hidden;
+      border: 3px solid rgba(29, 42, 34, 0.08);
+    }
+
+    .result-name {
+      font-size: 0.82rem;
+      color: var(--muted);
+      max-width: 110px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .result-versus {
+      font-size: 0.78rem;
+      letter-spacing: 0.18em;
+      color: var(--muted);
+    }
+
+    .result-word {
+      font-size: clamp(2rem, 7vw, 3.1rem);
+      line-height: 0.95;
+      letter-spacing: 0.08em;
+      font-weight: 800;
+      color: #203024;
+    }
+
+    .result-overlay.result-win .result-word {
+      color: #d66d2f;
+    }
+
+    .result-overlay.result-draw .result-word {
+      color: #576459;
+    }
+
+    .result-overlay.result-lose .result-word {
+      color: #203024;
+    }
+
+    .result-caption {
+      font-size: 0.92rem;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    .result-scoreline {
+      font-size: 1.02rem;
+      font-weight: 800;
+      color: #203024;
+    }
+
+    .result-actions {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
     }
 
     .cell {
@@ -507,6 +645,15 @@
         padding: 14px;
         gap: 10px;
       }
+
+      .result-card {
+        padding: 20px 16px;
+      }
+
+      .result-avatar {
+        width: 48px;
+        height: 48px;
+      }
     }
   </style>
 </head>
@@ -523,10 +670,12 @@
       </div>
 
       <div class="top-actions">
+        <label class="field-label" for="shareUrl">ルームID</label>
         <div class="link-row">
-          <input id="shareUrl" class="share-url" type="text" readonly value="ルーム作成中…">
+          <input id="shareUrl" class="share-url" type="text" value="ルーム作成中…" placeholder="ルームIDを入力">
         </div>
         <div class="button-row">
+          <button id="joinRoomButton" class="button-secondary" type="button">ルームへ移動</button>
           <button id="copyLinkButton" class="button-primary" type="button">LINEで招待</button>
           <button id="newRoomButton" class="button-secondary" type="button">新しいルーム</button>
         </div>
@@ -559,7 +708,31 @@
             </div>
           </div>
         </div>
-        <div id="board" class="board" aria-label="オセロ盤"></div>
+        <div class="board-stage">
+          <div id="board" class="board" aria-label="オセロ盤"></div>
+          <div id="resultOverlay" class="result-overlay hidden">
+            <div id="resultCard" class="result-card">
+              <div class="result-vs">
+                <div class="result-player">
+                  <div id="overlayMyAvatar" class="result-avatar">?</div>
+                  <div id="overlayMyName" class="result-name">あなた</div>
+                </div>
+                <div class="result-versus">VS</div>
+                <div class="result-player">
+                  <div id="overlayOpponentAvatar" class="result-avatar">?</div>
+                  <div id="overlayOpponentName" class="result-name">対戦相手</div>
+                </div>
+              </div>
+              <div id="resultWord" class="result-word">WIN</div>
+              <div id="resultCaption" class="result-caption">このルームで続けますか？</div>
+              <div id="resultScoreline" class="result-scoreline">0 - 0</div>
+              <div class="result-actions">
+                <button id="resultPrimaryButton" class="button-primary" type="button">続ける</button>
+                <button id="resultSecondaryButton" class="button-ghost" type="button">閉じる</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <aside class="panel sidebar">
