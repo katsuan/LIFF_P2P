@@ -65,9 +65,7 @@
     app.elements.resultScoreline = document.getElementById("resultScoreline");
     app.elements.resultPrimaryButton = document.getElementById("resultPrimaryButton");
     app.elements.resultSecondaryButton = document.getElementById("resultSecondaryButton");
-    app.elements.overlayMyAvatar = document.getElementById("overlayMyAvatar");
     app.elements.overlayMyName = document.getElementById("overlayMyName");
-    app.elements.overlayOpponentAvatar = document.getElementById("overlayOpponentAvatar");
     app.elements.overlayOpponentName = document.getElementById("overlayOpponentName");
     app.elements.userSummary = document.getElementById("userSummary");
     app.elements.roomSummary = document.getElementById("roomSummary");
@@ -133,6 +131,22 @@
     }
 
     element.style.display = shouldShow ? "" : "none";
+  }
+
+  function isCompactMobile() {
+    return window.innerWidth <= 640;
+  }
+
+  function getMyBaseLabel() {
+    return isCompactMobile() ? "私" : "あなた (You)";
+  }
+
+  function getOpponentBaseLabel() {
+    if (isComMode()) {
+      return "COM";
+    }
+
+    return isCompactMobile() ? "相手" : "対戦相手";
   }
 
   function getInitial(name) {
@@ -562,10 +576,8 @@
     setText(app.elements.resultWord, word);
     setText(app.elements.resultCaption, caption);
     setText(app.elements.resultScoreline, String(scoreForColor(counts, app.myColor)) + " - " + String(scoreForColor(counts, app.myColor ? getOpponent(app.myColor) : "")));
-    setText(app.elements.overlayMyName, app.displayName || "あなた");
-    setText(app.elements.overlayOpponentName, app.opponentDisplayName || (isComMode() ? "COM" : "対戦相手"));
-    setAvatar(app.elements.overlayMyAvatar, app.displayName || "あなた", app.pictureUrl || "");
-    setAvatar(app.elements.overlayOpponentAvatar, app.opponentDisplayName || "対戦相手", app.opponentPictureUrl || "");
+    setText(app.elements.overlayMyName, "私");
+    setText(app.elements.overlayOpponentName, getOpponentBaseLabel());
     setText(app.elements.resultPrimaryButton, primaryText);
     setText(app.elements.resultSecondaryButton, secondaryText);
     app.elements.resultPrimaryButton.disabled = outgoingPending;
@@ -678,8 +690,8 @@
   }
 
   function updateRoleUI() {
-    var myLabel = "あなた (You)";
-    var opponentLabel = isComMode() ? "COM" : "対戦相手";
+    var myLabel = getMyBaseLabel();
+    var opponentLabel = getOpponentBaseLabel();
     var myCardColor = "";
     var opponentCardColor = "";
 
@@ -1780,6 +1792,9 @@
     });
     app.elements.hostWhiteButton.addEventListener("click", function () {
       handleHostColorChange(WHITE);
+    });
+    window.addEventListener("resize", function () {
+      updateRoleUI();
     });
     updateRoleUI();
     updateOpponentUI("", "");

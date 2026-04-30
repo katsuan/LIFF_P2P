@@ -244,14 +244,7 @@
     .result-player {
       display: grid;
       justify-items: center;
-      gap: 8px;
-    }
-
-    .result-avatar {
-      width: 54px;
-      height: 54px;
-      border: 0;
-      box-shadow: 0 6px 14px rgba(29, 42, 34, 0.12);
+      gap: 4px;
     }
 
     .result-name {
@@ -643,10 +636,6 @@
         padding: 20px 16px;
       }
 
-      .result-avatar {
-        width: 40px;
-        height: 40px;
-      }
     }
   </style>
 </head>
@@ -707,13 +696,11 @@
             <div id="resultCard" class="result-card">
               <div class="result-vs">
                 <div class="result-player">
-                  <div id="overlayMyAvatar" class="avatar result-avatar">?</div>
-                  <div id="overlayMyName" class="result-name">あなた</div>
+                  <div id="overlayMyName" class="result-name">私</div>
                 </div>
                 <div class="result-versus">VS</div>
                 <div class="result-player">
-                  <div id="overlayOpponentAvatar" class="avatar result-avatar">?</div>
-                  <div id="overlayOpponentName" class="result-name">対戦相手</div>
+                  <div id="overlayOpponentName" class="result-name">相手</div>
                 </div>
               </div>
               <div id="resultWord" class="result-word">WIN</div>
