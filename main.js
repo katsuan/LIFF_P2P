@@ -4,6 +4,7 @@
   var WHITE = "W";
   var P2P_TIMEOUT_MS = 5000;
   var RECONNECT_TIMEOUT_MS = 8000;
+  var RECONNECT_RETRY_MS = 1500;
 
   var app = {
     userId: "",
@@ -20,10 +21,10 @@
     matchConfigured: false,
     roomData: null,
     roomUnsubscribe: null,
-    fallbackUnsubscribe: null,
     pendingPeerTarget: "",
     p2pTimer: null,
     reconnectTimer: null,
+    reconnectRetryTimer: null,
     reconnecting: false,
     comTimer: null,
     transportMode: "matchmaking",
@@ -496,6 +497,13 @@
     }
   }
 
+  function stopReconnectRetryTimer() {
+    if (app.reconnectRetryTimer) {
+      window.clearTimeout(app.reconnectRetryTimer);
+      app.reconnectRetryTimer = null;
+    }
+  }
+
   function hasPlayedMove() {
     return !!app.game.lastMove || app.game.version > 0;
   }
@@ -506,7 +514,7 @@
 
   function updateHostSetupUI() {
     var visible = app.role === "host" &&
-      app.transportMode !== "firestore" &&
+      app.transportMode !== "reconnecting" &&
       (!app.matchConfigured || (!hasPlayedMove() && !app.game.winner));
 
     setHidden(app.elements.hostSetupPanel, !visible);
@@ -596,24 +604,17 @@
     setAvatar(app.elements.opponentAvatar, name || "?", pictureUrl || "");
   }
 
-  function syncOpponentProfile(roomData) {
-    var opponentName = "";
-    var opponentPictureUrl = "";
-
-    if (!roomData) {
-      updateOpponentUI("", "");
+  function sendProfileSnapshot() {
+    if (!AppPeer.isConnected()) {
       return;
     }
 
-    if (app.role === "host") {
-      opponentName = roomData.guestDisplayName || "";
-      opponentPictureUrl = roomData.guestPictureUrl || "";
-    } else if (app.role === "guest") {
-      opponentName = roomData.hostDisplayName || "";
-      opponentPictureUrl = roomData.hostPictureUrl || "";
-    }
-
-    updateOpponentUI(opponentName, opponentPictureUrl);
+    // Profile data is exchanged only after P2P opens so Firestore stays matchmaking-only.
+    AppPeer.send({
+      type: "profile_sync",
+      displayName: app.displayName || "LINE ユーザー",
+      pictureUrl: app.pictureUrl || ""
+    });
   }
 
   function chooseComMove() {
@@ -668,6 +669,19 @@
     }, 420);
   }
 
+  function scheduleReconnectAttempt() {
+    if (!app.reconnecting || app.role !== "host" || !app.roomData || !app.roomData.guestPeerId || AppPeer.isConnected()) {
+      return;
+    }
+
+    stopReconnectRetryTimer();
+    app.reconnectRetryTimer = window.setTimeout(function () {
+      app.reconnectRetryTimer = null;
+      tryConnectToGuest(app.roomData.guestPeerId);
+      scheduleReconnectAttempt();
+    }, RECONNECT_RETRY_MS);
+  }
+
   function buildStateSnapshot() {
     return {
       type: "state_sync",
@@ -708,7 +722,7 @@
       if (!app.matchConfigured && data.matchConfigured) {
         shouldAdopt = true;
       } else if (!boardsMatch(data.board)) {
-        activateFirestoreFallback("再接続後の盤面が一致しません。");
+        switchToComTakeover("再接続後の盤面が一致しません。");
         return;
       }
     }
@@ -740,6 +754,7 @@
 
     app.reconnecting = false;
     stopReconnectTimer();
+    stopReconnectRetryTimer();
     stopP2PTimer();
     stopRoomSubscription();
     clearRematchState();
@@ -802,7 +817,7 @@
       });
       applyMatchSettings(nextHostColor, true);
     } catch (error) {
-      activateFirestoreFallback("再戦開始メッセージの送信に失敗しました。 " + error.message);
+      beginReconnectFlow("再戦開始メッセージの送信に失敗しました。 " + error.message);
     }
   }
 
@@ -824,87 +839,20 @@
     stopP2PTimer();
 
     app.p2pTimer = window.setTimeout(function () {
-      if (!AppPeer.isConnected() && app.transportMode !== "firestore") {
-        activateFirestoreFallback(label + "が5秒以内に完了しなかったため、Firestore フォールバックへ切り替えます。");
+      if (!AppPeer.isConnected()) {
+        if (app.matchConfigured || hasPlayedMove()) {
+          beginReconnectFlow(label + "が5秒以内に完了しなかったため、再接続を試みます。");
+        } else {
+          setTransportStatus("接続待機");
+          setOpponentStatus("接続未完了");
+          setMessage(label + "が5秒以内に完了しませんでした。相手の復帰を待つか、新しいルームを作成してください。");
+        }
       }
     }, P2P_TIMEOUT_MS);
   }
 
-  function buildFallbackPayload(reason) {
-    return {
-      fallbackReason: reason,
-      board: serializeBoard(app.game.board),
-      currentTurn: app.game.currentTurn || "",
-      version: app.game.version,
-      winner: app.game.winner || "",
-      message: app.game.message || "",
-      lastMove: app.game.lastMove || null
-    };
-  }
-
-  function listenForFallbackState() {
-    if (app.fallbackUnsubscribe) {
-      return;
-    }
-
-    app.fallbackUnsubscribe = AppFirebase.subscribeRoom(app.roomId, function (roomData) {
-      if (!roomData || roomData.transportMode !== "firestore") {
-        return;
-      }
-
-      syncFromFallbackSnapshot(roomData);
-    }, function (error) {
-      setMessage("フォールバック監視でエラーが発生しました: " + error.message);
-    });
-  }
-
-  function syncFromFallbackSnapshot(roomData) {
-    var snapshotVersion;
-
-    if (!roomData || !roomData.board) {
-      return;
-    }
-
-    snapshotVersion = Number(roomData.version || 0);
-    if (snapshotVersion < app.game.version) {
-      return;
-    }
-
-    app.game.board = deserializeBoard(roomData.board);
-    app.game.currentTurn = roomData.currentTurn || "";
-    app.game.version = snapshotVersion;
-    app.game.winner = roomData.winner || "";
-    app.game.message = roomData.message || app.game.message;
-    app.game.lastMove = roomData.lastMove || null;
-
-    setMessage(app.game.message);
-    renderBoard();
-    updateRematchUI();
-  }
-
-  function activateFirestoreFallback(reason) {
-    if (!app.roomId) {
-      return;
-    }
-
-    app.reconnecting = false;
-    stopReconnectTimer();
-    app.transportMode = "firestore";
-    setTransportStatus("Firestore フォールバック");
-    setModeStatus("フォールバック同期");
-    setOpponentStatus("Firestore 経由で接続中");
-    setMessage(reason + " 以後の対局同期は Firestore で行います。");
-    stopP2PTimer();
-    stopRoomSubscription();
-    listenForFallbackState();
-
-    AppFirebase.activateFallback(app.roomId, buildFallbackPayload(reason)).catch(function (error) {
-      setMessage("Firestore フォールバックへの切り替えに失敗しました: " + error.message);
-    });
-  }
-
   function beginReconnectFlow(reason) {
-    if (isComMode() || app.transportMode === "firestore" || !app.roomId) {
+    if (isComMode() || !app.roomId) {
       return;
     }
 
@@ -912,12 +860,13 @@
       return;
     }
 
+    // Peer IDs are stable per user+room, so reconnect can retry without extra Firestore writes.
     app.reconnecting = true;
     app.pendingPeerTarget = "";
     app.transportMode = "reconnecting";
     stopP2PTimer();
     stopReconnectTimer();
-    subscribeToRoom();
+    stopReconnectRetryTimer();
     setTransportStatus("再接続中");
     setModeStatus("P2P 再接続");
     setOpponentStatus("再接続待ち…");
@@ -926,6 +875,7 @@
 
     if (app.role === "host" && app.roomData && app.roomData.guestPeerId) {
       tryConnectToGuest(app.roomData.guestPeerId);
+      scheduleReconnectAttempt();
     }
 
     app.reconnectTimer = window.setTimeout(function () {
@@ -941,8 +891,10 @@
       return;
     }
 
+    // Once P2P is ready, gameplay is authoritative on the peers and Firestore is unsubscribed.
     app.reconnecting = false;
     stopReconnectTimer();
+    stopReconnectRetryTimer();
     app.opponentMode = "human";
     app.transportMode = "p2p";
     stopP2PTimer();
@@ -961,13 +913,15 @@
       try {
         if (app.matchConfigured) {
           sendStateSnapshot();
+          sendProfileSnapshot();
           setMessage("P2P 接続が再開されました。対局を同期しています。");
         } else {
           broadcastMatchSettings(app.desiredHostColor, false);
           sendStateSnapshot();
+          sendProfileSnapshot();
         }
       } catch (error) {
-        activateFirestoreFallback("初期設定の送信に失敗しました。 " + error.message);
+        beginReconnectFlow("初期設定の送信に失敗しました。 " + error.message);
       }
       return;
     }
@@ -975,12 +929,19 @@
     if (app.matchConfigured) {
       try {
         sendStateSnapshot();
+        sendProfileSnapshot();
       } catch (error) {
-        activateFirestoreFallback("再接続後の状態同期に失敗しました。 " + error.message);
+        beginReconnectFlow("再接続後の状態同期に失敗しました。 " + error.message);
         return;
       }
       setMessage("P2P 接続が再開されました。対局を同期しています。");
     } else {
+      try {
+        sendProfileSnapshot();
+      } catch (error) {
+        beginReconnectFlow("プロフィール同期の送信に失敗しました。 " + error.message);
+        return;
+      }
       setMessage("P2P 接続が確立されました。ホストの開始設定を待っています。");
     }
     updateRoleUI();
@@ -1019,21 +980,8 @@
     } catch (error) {
       clearRematchState();
       updateRematchUI();
-      activateFirestoreFallback("再戦リクエストの送信に失敗しました。 " + error.message);
+      beginReconnectFlow("再戦リクエストの送信に失敗しました。 " + error.message);
     }
-  }
-
-  function persistFallbackMove() {
-    AppFirebase.saveFallbackState(app.roomId, {
-      board: serializeBoard(app.game.board),
-      currentTurn: app.game.currentTurn || "",
-      version: app.game.version,
-      winner: app.game.winner || "",
-      message: app.game.message,
-      lastMove: app.game.lastMove || null
-    }).catch(function (error) {
-      setMessage("フォールバック時の盤面同期に失敗しました: " + error.message);
-    });
   }
 
   function makeMove(row, col, color, source, incomingVersion) {
@@ -1042,7 +990,7 @@
     var moveMessage;
 
     if (incomingVersion && incomingVersion !== expectedVersion) {
-      activateFirestoreFallback("ピア間で盤面バージョンの不一致を検出しました。");
+      switchToComTakeover("ピア間で盤面バージョンの不一致を検出しました。");
       return false;
     }
 
@@ -1050,7 +998,7 @@
 
     if (!applied) {
       if (source === "remote") {
-        activateFirestoreFallback("相手から無効な手が送信されました。");
+        switchToComTakeover("相手から無効な手が送信されました。");
         return false;
       }
 
@@ -1068,10 +1016,6 @@
     renderBoard();
     updateRematchUI();
     maybeScheduleComTurn();
-
-    if (app.transportMode === "firestore") {
-      persistFallbackMove();
-    }
 
     return true;
   }
@@ -1096,7 +1040,7 @@
       try {
         AppPeer.send(payload);
       } catch (error) {
-        activateFirestoreFallback("P2P 送信に失敗しました。 " + error.message);
+        beginReconnectFlow("P2P 送信に失敗しました。 " + error.message);
       }
     }
   }
@@ -1130,6 +1074,11 @@
 
     if (data.type === "state_sync") {
       applyStateSnapshot(data);
+      return;
+    }
+
+    if (data.type === "profile_sync") {
+      updateOpponentUI(data.displayName || "対戦相手", data.pictureUrl || "");
       return;
     }
 
@@ -1191,21 +1140,6 @@
       return;
     }
 
-    syncOpponentProfile(roomData);
-
-    if (roomData.transportMode === "firestore") {
-      app.transportMode = "firestore";
-      setTransportStatus("Firestore フォールバック");
-      setModeStatus("フォールバック同期");
-      setOpponentStatus(roomData.guestUserId ? "Firestore 経由で接続中" : "ゲスト待機中");
-      stopP2PTimer();
-      stopRoomSubscription();
-      listenForFallbackState();
-      syncFromFallbackSnapshot(roomData);
-      updateRoleUI();
-      return;
-    }
-
     if (app.role === "host") {
       if (roomData.guestUserId) {
         setOpponentStatus("ゲストが参加しました");
@@ -1223,6 +1157,7 @@
       return;
     }
 
+    // Firestore is used only until peers discover each other and establish the direct channel.
     app.roomUnsubscribe = AppFirebase.subscribeRoom(app.roomId, handleRoomSnapshot, function (error) {
       setMessage("ルーム監視でエラーが発生しました: " + error.message);
     });
@@ -1232,15 +1167,10 @@
     return {
       roomId: app.roomId,
       hostUserId: app.userId,
-      hostDisplayName: app.displayName,
-      hostPictureUrl: app.pictureUrl || "",
       guestUserId: "",
-      guestDisplayName: "",
-      guestPictureUrl: "",
       hostPeerId: app.peerId,
       guestPeerId: "",
-      status: "waiting",
-      transportMode: "p2p"
+      status: "waiting"
     };
   }
 
@@ -1272,7 +1202,6 @@
     app.opponentMode = "human";
     app.myColor = WHITE;
     updateRoleUI();
-    syncOpponentProfile(roomData);
     setTransportStatus("ホスト待機中");
     setModeStatus("マッチング");
     setOpponentStatus("ルーム参加中…");
@@ -1286,8 +1215,6 @@
 
     return AppFirebase.updateRoom(app.roomId, {
       guestUserId: app.userId,
-      guestDisplayName: app.displayName,
-      guestPictureUrl: app.pictureUrl || "",
       guestPeerId: app.peerId,
       status: "ready"
     }).then(function () {
@@ -1305,19 +1232,7 @@
     clearRematchState();
     clearComTimer();
     updateRoleUI();
-    syncOpponentProfile(roomData);
     resetGameState();
-
-    if (roomData.transportMode === "firestore" && roomData.board) {
-      app.transportMode = "firestore";
-      setTransportStatus("Firestore フォールバック");
-      setModeStatus("フォールバック同期");
-      setOpponentStatus("Firestore 経由で接続中");
-      stopP2PTimer();
-      listenForFallbackState();
-      syncFromFallbackSnapshot(roomData);
-      return Promise.resolve();
-    }
 
     setTransportStatus(role === "host" ? "ゲスト待機中" : "ホスト待機中");
     setModeStatus("マッチング");
@@ -1325,54 +1240,19 @@
     setMessage("既存のルームに再接続しました。接続状態を確認しています。");
     subscribeToRoom();
 
-    return refreshOwnPeerId(roomData).then(function () {
-      if (role === "host" && roomData.guestPeerId) {
-        tryConnectToGuest(roomData.guestPeerId);
-      } else if (role === "guest") {
-        startP2PTimer("着信 P2P 接続");
-      }
-    });
-  }
-
-  function refreshOwnPeerId(roomData) {
-    if (app.role === "host" && (
-        roomData.hostPeerId !== app.peerId ||
-        roomData.hostDisplayName !== app.displayName ||
-        roomData.hostPictureUrl !== (app.pictureUrl || ""))) {
-      return AppFirebase.updateRoom(app.roomId, {
-        hostPeerId: app.peerId,
-        hostDisplayName: app.displayName,
-        hostPictureUrl: app.pictureUrl || ""
-      });
-    }
-
-    if (app.role === "guest" && (
-        roomData.guestPeerId !== app.peerId ||
-        roomData.guestDisplayName !== app.displayName ||
-        roomData.guestPictureUrl !== (app.pictureUrl || ""))) {
-      return AppFirebase.updateRoom(app.roomId, {
-        guestPeerId: app.peerId,
-        guestDisplayName: app.displayName,
-        guestPictureUrl: app.pictureUrl || ""
-      });
+    if (role === "host" && roomData.guestPeerId) {
+      tryConnectToGuest(roomData.guestPeerId);
+    } else if (role === "guest") {
+      startP2PTimer("着信 P2P 接続");
     }
 
     return Promise.resolve();
   }
 
   function loadOrCreateRoom() {
-    var params = new URLSearchParams(window.location.search);
-    var requestedRoomId = params.get("room");
-
-    if (!requestedRoomId) {
-      return createHostRoom(generateId("room"));
-    }
-
-    updateRoomUrl(requestedRoomId);
-
-    return AppFirebase.getRoom(requestedRoomId).then(function (roomData) {
+    return AppFirebase.getRoom(app.roomId).then(function (roomData) {
       if (!roomData) {
-        return createHostRoom(requestedRoomId);
+        return createHostRoom(app.roomId);
       }
 
       if (roomData.hostUserId === app.userId) {
@@ -1394,7 +1274,16 @@
   }
 
   function buildPeerId() {
-    return sanitizeForPeer(app.userId) + "-" + Math.random().toString(36).slice(2, 8);
+    var userPart = sanitizeForPeer(app.userId).slice(0, 16);
+    var roomPart = sanitizeForPeer(app.roomId).slice(-10);
+    return userPart + "-" + roomPart;
+  }
+
+  function prepareRoomId() {
+    var params = new URLSearchParams(window.location.search);
+    var requestedRoomId = params.get("room");
+
+    updateRoomUrl(requestedRoomId || generateId("room"));
   }
 
   function initLiffIdentity() {
@@ -1450,13 +1339,13 @@
       },
       onConnectionClose: function () {
         app.pendingPeerTarget = "";
-        if (app.transportMode !== "firestore") {
+        if (app.transportMode !== "com") {
           beginReconnectFlow("P2P 接続が切断されました。");
         }
       },
       onConnectionError: function (error) {
         app.pendingPeerTarget = "";
-        if (app.transportMode !== "firestore") {
+        if (app.transportMode !== "com") {
           beginReconnectFlow("P2P 接続エラーが発生しました: " + error.message);
         }
       },
@@ -1465,7 +1354,7 @@
       },
       onPeerDisconnected: function () {
         app.pendingPeerTarget = "";
-        if (app.transportMode !== "firestore") {
+        if (app.transportMode !== "com") {
           beginReconnectFlow("ピアのシグナリング接続が切断されました。");
         }
       }
@@ -1517,7 +1406,7 @@
       try {
         broadcastMatchSettings(color, false);
       } catch (error) {
-        activateFirestoreFallback("開始設定の送信に失敗しました。 " + error.message);
+        beginReconnectFlow("開始設定の送信に失敗しました。 " + error.message);
       }
     }
   }
@@ -1526,6 +1415,7 @@
     app.opponentMode = "com";
     app.reconnecting = false;
     stopReconnectTimer();
+    stopReconnectRetryTimer();
     app.transportMode = "com";
     setTransportStatus("ローカル");
     setModeStatus("COM 対戦");
@@ -1588,7 +1478,7 @@
         swapColors: !!app.rematch.incoming.swapColors
       });
     } catch (error) {
-      activateFirestoreFallback("再戦承認の送信に失敗しました。 " + error.message);
+      beginReconnectFlow("再戦承認の送信に失敗しました。 " + error.message);
       return;
     }
 
@@ -1618,7 +1508,7 @@
         type: "rematch_reject"
       });
     } catch (error) {
-      activateFirestoreFallback("再戦辞退の送信に失敗しました。 " + error.message);
+      beginReconnectFlow("再戦辞退の送信に失敗しました。 " + error.message);
       return;
     }
 
@@ -1657,6 +1547,7 @@
 
     initLiffIdentity().then(function () {
       updateIdentityUI();
+      prepareRoomId();
       AppFirebase.init();
       return wirePeerHandlers();
     }).then(function () {

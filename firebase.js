@@ -79,38 +79,6 @@
 
         onData(snapshot.data());
       }, onError);
-    },
-
-    activateFallback: function (roomId, payload) {
-      var data = {};
-
-      for (var key in payload) {
-        if (payload.hasOwnProperty(key)) {
-          data[key] = payload[key];
-        }
-      }
-
-      data.transportMode = "firestore";
-      data.status = "playing";
-      data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-
-      return roomDoc(roomId).set(data, { merge: true });
-    },
-
-    saveFallbackState: function (roomId, payload) {
-      var data = {};
-
-      for (var key in payload) {
-        if (payload.hasOwnProperty(key)) {
-          data[key] = payload[key];
-        }
-      }
-
-      data.transportMode = "firestore";
-      data.status = "playing";
-      data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-
-      return roomDoc(roomId).set(data, { merge: true });
     }
   };
 
