@@ -143,6 +143,21 @@
 
     .board-shell {
       padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .board-head {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .board-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
     }
 
     .board {
@@ -421,6 +436,12 @@
         justify-content: flex-start;
       }
     }
+
+    @media (max-width: 640px) {
+      .board-head {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
@@ -448,38 +469,42 @@
 
     <section class="board-layout">
       <div class="panel board-shell">
+        <div class="board-head">
+          <div class="player-card">
+            <div id="myAvatar" class="avatar">?</div>
+            <div class="player-meta">
+              <div class="player-head">
+                <div id="myLabel" class="player-label">あなた (You)</div>
+                <div id="myScore" class="player-score">2</div>
+              </div>
+              <div id="userSummary" class="player-name">LIFF を初期化中…</div>
+            </div>
+          </div>
+          <div class="player-card">
+            <div id="opponentAvatar" class="avatar">?</div>
+            <div class="player-meta">
+              <div class="player-head">
+                <div id="opponentLabel" class="player-label">対戦相手</div>
+                <div id="opponentScore" class="player-score">2</div>
+              </div>
+              <div id="opponentName" class="player-name">参加待ち</div>
+              <div id="opponentStatus" class="player-status">待機中…</div>
+            </div>
+          </div>
+        </div>
+        <div class="board-meta">
+          <div class="turn-card">
+            <div class="turn-label">現在の手番</div>
+            <div id="turnStatus" class="turn-value">盤面を準備中…</div>
+          </div>
+          <div class="badge-row">
+            <div id="roleBadge" class="badge">役割: 未確定</div>
+          </div>
+        </div>
         <div id="board" class="board" aria-label="オセロ盤"></div>
       </div>
 
       <aside class="panel sidebar">
-        <div class="player-card">
-          <div id="myAvatar" class="avatar">?</div>
-          <div class="player-meta">
-            <div class="player-head">
-              <div id="myLabel" class="player-label">あなた</div>
-              <div id="myScore" class="player-score">2</div>
-            </div>
-            <div id="userSummary" class="player-name">LIFF を初期化中…</div>
-          </div>
-        </div>
-        <div class="player-card">
-          <div id="opponentAvatar" class="avatar">?</div>
-          <div class="player-meta">
-            <div class="player-head">
-              <div id="opponentLabel" class="player-label">対戦相手</div>
-              <div id="opponentScore" class="player-score">2</div>
-            </div>
-            <div id="opponentName" class="player-name">参加待ち</div>
-            <div id="opponentStatus" class="player-status">待機中…</div>
-          </div>
-        </div>
-        <div class="turn-card">
-          <div class="turn-label">現在の手番</div>
-          <div id="turnStatus" class="turn-value">盤面を準備中…</div>
-        </div>
-        <div class="badge-row">
-          <div id="roleBadge" class="badge">役割: 未確定</div>
-        </div>
         <div id="hostSetupPanel" class="control-panel hidden">
           <div class="control-title">開始前設定</div>
           <div class="control-actions">

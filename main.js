@@ -574,7 +574,7 @@
   }
 
   function updateRoleUI() {
-    var myLabel = "あなた";
+    var myLabel = "あなた (You)";
     var opponentLabel = isComMode() ? "COM" : "対戦相手";
 
     if (app.myColor) {
