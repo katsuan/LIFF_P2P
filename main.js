@@ -584,21 +584,44 @@
     setText(app.elements.rematchHint, decisionText);
   }
 
+  function setCardColorClass(element, color) {
+    if (!element) {
+      return;
+    }
+
+    element.classList.remove("color-black");
+    element.classList.remove("color-white");
+
+    if (color === BLACK) {
+      element.classList.add("color-black");
+    } else if (color === WHITE) {
+      element.classList.add("color-white");
+    }
+  }
+
   function updateRoleUI() {
     var myLabel = "あなた (You)";
     var opponentLabel = isComMode() ? "COM" : "対戦相手";
+    var myCardColor = "";
+    var opponentCardColor = "";
 
     if (app.myColor) {
       myLabel += " (" + colorName(app.myColor) + ")";
       opponentLabel += " (" + colorName(getOpponent(app.myColor)) + ")";
+      myCardColor = app.myColor;
+      opponentCardColor = getOpponent(app.myColor);
     } else if (app.role === "host") {
       myLabel += " (" + colorName(app.desiredHostColor) + "予定)";
       opponentLabel += " (" + colorName(getOpponent(app.desiredHostColor)) + "予定)";
+      myCardColor = app.desiredHostColor;
+      opponentCardColor = getOpponent(app.desiredHostColor);
     }
 
     setText(app.elements.myLabel, myLabel);
     setText(app.elements.myStatus, "役割: " + roleName(app.role));
     setText(app.elements.opponentLabel, opponentLabel);
+    setCardColorClass(app.elements.myCard, myCardColor);
+    setCardColorClass(app.elements.opponentCard, opponentCardColor);
     updateHostSetupUI();
     updateRematchUI();
     renderBoard();

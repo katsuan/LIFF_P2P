@@ -123,6 +123,10 @@
       box-shadow: none;
     }
 
+    .cell:disabled {
+      opacity: 1;
+    }
+
     .button-primary {
       background: var(--accent);
       color: #fffaf2;
@@ -245,6 +249,35 @@
       border-color: #d66d2f;
       background: rgba(255, 255, 255, 0.92);
       box-shadow: 0 12px 24px rgba(214, 109, 47, 0.18);
+    }
+
+    .player-card.color-black {
+      background: linear-gradient(180deg, rgba(42, 48, 45, 0.94) 0%, rgba(24, 28, 26, 0.92) 100%);
+      color: #f6f3ea;
+    }
+
+    .player-card.color-black .player-label,
+    .player-card.color-black .player-status {
+      color: rgba(246, 243, 234, 0.74);
+    }
+
+    .player-card.color-black .player-name,
+    .player-card.color-black .player-score {
+      color: #fffaf0;
+    }
+
+    .player-card.color-black .avatar {
+      background-color: #4a514d;
+      color: #fffaf0;
+    }
+
+    .player-card.color-white {
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(244, 239, 228, 0.96) 100%);
+      border-color: rgba(32, 48, 36, 0.12);
+    }
+
+    .player-card.color-white .avatar {
+      background-color: #f1ebdc;
     }
 
     .avatar {
@@ -428,7 +461,51 @@
 
     @media (max-width: 640px) {
       .board-head {
-        grid-template-columns: 1fr;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .player-card {
+        grid-template-columns: 40px minmax(0, 1fr);
+        gap: 10px;
+        padding: 10px;
+        border-radius: 14px;
+      }
+
+      .avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 0.82rem;
+      }
+
+      .player-meta {
+        gap: 0;
+      }
+
+      .player-head {
+        min-width: 0;
+      }
+
+      .player-label {
+        font-size: 0.68rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .player-score {
+        min-width: 20px;
+        font-size: 1.05rem;
+      }
+
+      .player-name,
+      .player-status {
+        display: none;
+      }
+
+      .board-shell {
+        padding: 14px;
+        gap: 10px;
       }
     }
   </style>
