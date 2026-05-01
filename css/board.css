@@ -270,6 +270,7 @@
   grid-template-columns: 54px minmax(0, 1fr);
   gap: 12px;
   align-items: center;
+  min-height: 112px;
   padding: 14px;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.74);
@@ -339,6 +340,7 @@
   min-width: 0;
   display: grid;
   gap: 4px;
+  align-content: center;
 }
 
 .player-head {
@@ -346,14 +348,19 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  min-height: 28px;
 }
 
 .player-label {
   color: var(--muted);
   font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .player-name {
+  min-height: 1.35em;
   font-size: 1rem;
   font-weight: 700;
   white-space: nowrap;
@@ -362,10 +369,12 @@
 }
 
 .player-score {
-  min-width: 28px;
+  min-width: 2ch;
+  width: 2ch;
   text-align: right;
   font-size: 1rem;
   font-weight: 800;
+  font-variant-numeric: tabular-nums;
   color: #203024;
 }
 
@@ -378,6 +387,13 @@
 .player-status,
 .small {
   font-size: 0.88rem;
+}
+
+.player-status {
+  min-height: 1.35em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .control-panel,
@@ -613,6 +629,7 @@
   .player-card {
     grid-template-columns: 40px minmax(0, 1fr);
     gap: 10px;
+    min-height: 74px;
     padding: 10px;
     border-radius: 14px;
   }

@@ -48,18 +48,16 @@
     boardElement.appendChild(fragment);
   }
 
-  function getRoleName(role) {
-    if (role === "host") {
-      return "ホスト";
-    }
-    if (role === "guest") {
-      return "ゲスト";
-    }
-    return "未確定";
-  }
-
   function isCompactMobile() {
     return window.innerWidth <= 640;
+  }
+
+  function isHumanP2PSetup(app) {
+    return app.opponentMode === "human" &&
+      app.transportMode === "p2p" &&
+      !app.matchConfigured &&
+      !app.game.lastMove &&
+      !app.game.winner;
   }
 
   function getMyLabel(app) {
@@ -69,6 +67,9 @@
     }
     if (app.role === "host") {
       return label + " (" + Game.colorName(app.desiredHostColor) + "予定)";
+    }
+    if (app.role === "guest" && app.opponentMode === "human" && !app.matchConfigured) {
+      return label + " (" + Game.colorName(Game.getOpponent(app.desiredHostColor)) + "予定)";
     }
     return label;
   }
@@ -80,6 +81,9 @@
     }
     if (app.role === "host") {
       return label + " (" + Game.colorName(Game.getOpponent(app.desiredHostColor)) + "予定)";
+    }
+    if (app.role === "guest" && app.opponentMode === "human" && !app.matchConfigured) {
+      return label + " (" + Game.colorName(app.desiredHostColor) + "予定)";
     }
     return label;
   }
@@ -98,6 +102,35 @@
       return "対戦相手";
     }
     return "参加待ち";
+  }
+
+  function getMyStatusText(app) {
+    if (app.spectatorMode) {
+      return "観戦中";
+    }
+    if (app.resumePending) {
+      return "再開方法を選択中";
+    }
+    if (isHumanP2PSetup(app)) {
+      return app.localStartReady ? "START 準備OK" : "START 前";
+    }
+    if (app.opponentMode === "com" && !app.matchConfigured && !app.game.lastMove && !app.game.winner) {
+      return "START 待ち";
+    }
+    return app.role ? "接続済み" : "待機中…";
+  }
+
+  function getOpponentStatusText(app) {
+    if (app.spectatorMode) {
+      return "選択待ち";
+    }
+    if (app.resumePending) {
+      return "復帰しました";
+    }
+    if (isHumanP2PSetup(app)) {
+      return app.remoteStartReady ? "START 準備OK" : "START 前";
+    }
+    return app.status.opponent;
   }
 
   function setCardColorClass(element, color) {
@@ -171,9 +204,11 @@
 
     if (app.opponentMode === "com") {
       return {
-        label: "ひとりで",
+        label: app.hostTransferred ? "引継ぎ中" : "ひとりで",
         title: "このルームで対局を進めます。",
-        hint: "ひとりで練習します。色を決めて START を押します。",
+        hint: app.hostTransferred && (app.matchConfigured || app.game.lastMove) && !app.game.winner ?
+          "このルームはあなたが引き継ぎました。相手が戻ると、今の盤面から再開するか選べます。" :
+          "ひとりで練習します。色を決めて START を押します。",
         toolsSummary: "別のルームに参加 / 新しい対局",
         joinLabel: "別のルームに参加",
         newRoomLabel: "別の対局を作る",
@@ -185,9 +220,11 @@
 
     if (app.role === "host" && !joinedOpponent && !isPlaying && !app.game.winner) {
       return {
-        label: "招待中",
-        title: "このルームで対局を進めます。",
-        hint: "友だちを招待して参加を待っています。",
+        label: app.hostTransferred ? "引継ぎ済み" : "招待中",
+        title: app.hostTransferred ? "このルームを引き継ぎました。" : "このルームで対局を進めます。",
+        hint: app.hostTransferred ?
+          "友だちの参加を待つか、COM に切り替えて続けられます。" :
+          "友だちを招待して参加を待っています。",
         toolsSummary: "別のルームに参加 / 新しい対局",
         joinLabel: "別のルームに参加",
         newRoomLabel: "別の対局を作る",
@@ -201,7 +238,7 @@
       return {
         label: "参加中",
         title: "このルームで対局を進めます。",
-        hint: "ホストの開始を待っています。招待は不要です。",
+        hint: "相手とつながると、色を決めて2人で START します。",
         toolsSummary: "別のルームに参加 / 新しい対局",
         joinLabel: "別のルームに参加",
         newRoomLabel: "別の対局を作る",
@@ -215,7 +252,7 @@
       return {
         label: "準備完了",
         title: "このルームで対局を進めます。",
-        hint: "相手が参加しました。色を確認して START で始めます。",
+        hint: "相手とつながると、色を決めて2人で START します。",
         toolsSummary: "別のルームに参加 / 新しい対局",
         joinLabel: "別のルームに参加",
         newRoomLabel: "別の対局を作る",
@@ -269,12 +306,9 @@
         "あなたが黒で始めます。STARTで練習を始めます。" :
         "COMが黒で始めます。STARTで練習を始めます。";
     }
-    if (app.role === "host") {
-      return app.desiredHostColor === Game.BLACK ?
-        "あなたが黒です。STARTで対局を始めます。" :
-        "相手が黒です。STARTで対局を始めます。";
-    }
-    return "ホストが START を押すと対局が始まります。";
+    return app.desiredHostColor === Game.BLACK ?
+      "あなたが黒です。2人とも START を押すと対局が始まります。" :
+      "相手が黒です。2人とも START を押すと対局が始まります。";
   }
 
   function create(documentRef) {
@@ -417,8 +451,8 @@
         setText(elements.opponentLabel, getOpponentLabel(app));
         setText(elements.myName, app.displayName || "あなた");
         setText(elements.opponentName, getOpponentName(app));
-        setText(elements.myStatus, "役割: " + getRoleName(app.role));
-        setText(elements.opponentStatus, app.status.opponent);
+        setText(elements.myStatus, getMyStatusText(app));
+        setText(elements.opponentStatus, getOpponentStatusText(app));
         setText(elements.myScore, String(app.myColor ? (app.myColor === Game.BLACK ? counts.black : counts.white) : "-"));
         setText(elements.opponentScore, String(app.myColor ? (app.myColor === Game.BLACK ? counts.white : counts.black) : "-"));
         setHidden(elements.messageBox, !showMessage);
@@ -463,15 +497,18 @@
           setText(elements.resumeText, "相手が COM で継続中です。今の盤面を表示しています。再開方法の選択を待っています。");
         }
 
-        setHidden(elements.hostSetupPanel, !(app.role === "host" &&
+        setHidden(elements.hostSetupPanel, !(
           app.transportMode !== "reconnecting" &&
           !app.matchConfigured &&
           !app.game.lastMove &&
-          !app.game.winner));
-        setHidden(elements.hostSetupOpponentSlot, app.opponentMode === "human" &&
+          !app.game.winner &&
+          ((app.role === "host") || isHumanP2PSetup(app))
+        ));
+        setHidden(elements.hostSetupOpponentSlot, app.role !== "host" ||
+          (app.opponentMode === "human" &&
           !!app.roomData &&
           !!app.roomData.guestUserId &&
-          !app.staleGuest);
+          !app.staleGuest));
         elements.humanOpponentButton.classList.toggle("active", app.opponentMode === "human");
         elements.comOpponentButton.classList.toggle("active", app.opponentMode === "com");
         elements.hostColorSwapButton.classList.toggle("is-black-start", app.desiredHostColor === Game.BLACK);
@@ -484,14 +521,16 @@
           "あなたが白です。押すと黒へ切り替えます。");
         setText(elements.controlHint, app.opponentMode === "com" ?
           "黒が先手です。COM はこの端末だけで動きます。" :
-          "黒が先手です。相手とつながったら START で開始します。");
+          (isHumanP2PSetup(app) ?
+            "黒が先手です。色を変えると START 準備は解除されます。" :
+            "黒が先手です。相手とつながったら 2人で START します。"));
 
         setHidden(elements.startOverlay, !shouldShowStartOverlay(app));
         if (shouldShowStartOverlay(app)) {
           setText(elements.startWord, "START");
           setText(elements.startCaption, getStartCaption(app));
-          setText(elements.startButton, app.role === "host" ? "START" : "待機中");
-          elements.startButton.disabled = app.role !== "host";
+          setText(elements.startButton, app.opponentMode === "human" && app.localStartReady ? "準備OK" : "START");
+          elements.startButton.disabled = app.opponentMode === "com" ? app.role !== "host" : !!app.localStartReady;
         }
 
         setHidden(elements.resultOverlay, !app.game.winner || app.resultOverlayDismissed);

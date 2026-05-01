@@ -55,6 +55,9 @@
       reconnectReason: "",
       reconnectDeadline: 0,
       staleGuest: false,
+      hostTransferred: false,
+      localStartReady: false,
+      remoteStartReady: false,
       spectatorMode: false,
       resumePending: false,
       resumeRequesterName: "",
@@ -156,6 +159,11 @@
       app.resumeRequesterName = "";
     }
 
+    function clearStartReady() {
+      app.localStartReady = false;
+      app.remoteStartReady = false;
+    }
+
     function resetGame() {
       app.game = Game.createFreshGame();
       app.resultOverlayDismissed = false;
@@ -195,6 +203,9 @@
         opponentMode: app.opponentMode,
         desiredHostColor: app.desiredHostColor,
         currentHostColor: app.currentHostColor,
+        hostTransferred: app.hostTransferred,
+        localStartReady: app.localStartReady,
+        remoteStartReady: app.remoteStartReady,
         matchConfigured: app.matchConfigured,
         myColor: app.myColor,
         game: app.game
@@ -227,6 +238,9 @@
       app.opponentMode = saved.opponentMode || app.opponentMode;
       app.desiredHostColor = saved.desiredHostColor || app.desiredHostColor;
       app.currentHostColor = saved.currentHostColor || app.currentHostColor;
+      app.hostTransferred = !!saved.hostTransferred;
+      app.localStartReady = !!saved.localStartReady;
+      app.remoteStartReady = !!saved.remoteStartReady;
       app.matchConfigured = !!saved.matchConfigured;
       app.myColor = saved.myColor || app.myColor;
       clearResumeState();
@@ -255,9 +269,126 @@
       window.history.replaceState({}, "", buildPageUrl(app.roomId, app.joinRequested));
     }
 
+    function isActiveMatch() {
+      return !app.game.winner && (app.matchConfigured || !!app.game.lastMove);
+    }
+
+    function applyPromotedHostRoom(roomData) {
+      app.role = "host";
+      app.joinRequested = false;
+      app.hostTransferred = true;
+      app.staleGuest = false;
+      app.pendingPeerTarget = "";
+      app.roomData = roomData || app.roomData || {};
+      app.roomData.roomId = app.roomId;
+      app.roomData.hostUserId = app.userId;
+      app.roomData.hostPeerId = app.peerId;
+      app.roomData.guestUserId = "";
+      app.roomData.guestPeerId = "";
+      app.roomData.status = "waiting";
+      syncBrowserUrl();
+    }
+
+    function promoteCurrentGuestToHost(reason) {
+      var activeMatch = isActiveMatch();
+      var nextHostColor = app.myColor || app.currentHostColor || app.desiredHostColor || Game.BLACK;
+
+      if (app.role !== "guest" || app.opponentMode === "com" || !app.roomId) {
+        return Promise.resolve(false);
+      }
+
+      stopRoomSubscription();
+      setTransport("ルーム引継ぎ中");
+      setMode(activeMatch ? "COM 引継ぎ" : "マッチング");
+      setOpponentStatus("ホスト譲渡中");
+      setMessage(reason + " このルームを引き継いでいます。");
+
+      return Matchmaking.promoteGuestToHost(app.roomId, app.userId, app.peerId).then(function () {
+        applyPromotedHostRoom();
+        app.currentHostColor = nextHostColor;
+        app.desiredHostColor = nextHostColor;
+
+        if (activeMatch) {
+          play.switchToCom(reason + " このルームを引き継ぎました。");
+        } else {
+          app.opponentMode = "human";
+          app.transportMode = "matchmaking";
+          clearStartReady();
+          app.matchConfigured = false;
+          app.myColor = "";
+          clearResumeState();
+          clearRematch();
+          resetGame();
+          setOpponentProfile("参加待ち", "");
+          setTransport("ゲスト待機中");
+          setMode("マッチング");
+          setOpponentStatus("このルームを引き継ぎました");
+          setMessage("ホストの復帰待ちは終了しました。このルームを引き継いだので、友だちを待つか COM に切り替えられます。");
+          subscribeToRoom();
+        }
+        render();
+        return true;
+      }).catch(function () {
+        return false;
+      });
+    }
+
+    function reopenHostWaitingRoom(reason) {
+      if (app.role !== "host" || app.opponentMode === "com" || !app.roomId || isActiveMatch()) {
+        return Promise.resolve(false);
+      }
+
+      stopRoomSubscription();
+      setTransport("待機へ戻しています");
+      setMode("マッチング");
+      setOpponentStatus("参加待ちへ戻しています");
+      setMessage(reason + " 相手の席を開放して待機状態へ戻しています。");
+
+      return Matchmaking.resetHostRoom(app.roomId, app.userId, app.peerId).then(function () {
+        app.roomData = app.roomData || {};
+        app.roomData.roomId = app.roomId;
+        app.roomData.hostUserId = app.userId;
+        app.roomData.hostPeerId = app.peerId;
+        app.roomData.guestUserId = "";
+        app.roomData.guestPeerId = "";
+        app.roomData.status = "waiting";
+        app.staleGuest = false;
+        app.hostTransferred = false;
+        app.opponentMode = "human";
+        app.currentHostColor = "";
+        clearStartReady();
+        app.matchConfigured = false;
+        app.myColor = "";
+        clearResumeState();
+        clearRematch();
+        resetGame();
+        setOpponentProfile("参加待ち", "");
+        setTransport("ゲスト待機中");
+        setMode("マッチング");
+        setOpponentStatus("ゲスト待機中");
+        setMessage("相手の復帰待ちは終了しました。新しく参加を待つか、COM に切り替えられます。");
+        subscribeToRoom();
+        render();
+        return true;
+      }).catch(function () {
+        return false;
+      });
+    }
+
+    function handleReconnectTimeout(reason) {
+      if (app.role === "guest" && app.opponentMode === "human") {
+        return promoteCurrentGuestToHost(reason);
+      }
+      if (app.role === "host" && app.opponentMode === "human") {
+        return reopenHostWaitingRoom(reason);
+      }
+      return false;
+    }
+
     var play = window.OthelloPlay.create(app, {
       clearRematch: clearRematch,
       getRemotePeerId: getRemotePeerId,
+      onReconnectTimeout: handleReconnectTimeout,
       render: render,
       resetGame: resetGame,
       setMessage: setMessage,
@@ -310,6 +441,8 @@
         app.role = "";
         app.opponentMode = "human";
         app.currentHostColor = "";
+        app.hostTransferred = false;
+        clearStartReady();
         app.matchConfigured = false;
         app.myColor = "";
         clearResumeState();
@@ -344,6 +477,8 @@
       app.role = entry === "join-guest" || entry === "resume-guest" ? "guest" : "host";
       app.opponentMode = "human";
       app.currentHostColor = "";
+      app.hostTransferred = false;
+      clearStartReady();
       app.matchConfigured = false;
       app.myColor = "";
       clearResumeState();
@@ -410,6 +545,7 @@
       app.opponentMode = "human";
       app.transportMode = "matchmaking";
       clearResumeState();
+      clearStartReady();
       app.currentHostColor = "";
       app.matchConfigured = false;
       app.myColor = "";
@@ -431,6 +567,7 @@
       app.opponentMode = "com";
       app.transportMode = "com";
       clearResumeState();
+      clearStartReady();
       app.currentHostColor = "";
       app.matchConfigured = false;
       app.myColor = "";
@@ -445,8 +582,23 @@
     }
 
     function handleHostColorChange(color) {
+      var canSyncWithPeer = app.opponentMode === "human" &&
+        AppPeer.isConnected() &&
+        !app.matchConfigured &&
+        !app.game.lastMove &&
+        !app.game.winner;
+
+      if (app.role !== "host" && !canSyncWithPeer) {
+        setMessage("色変更は、P2P 接続後の開始前のみ両者で変更できます。");
+        return;
+      }
+
       app.desiredHostColor = color;
+      clearStartReady();
       render();
+      if (canSyncWithPeer) {
+        play.syncSetupState();
+      }
     }
 
     function toggleHostColor() {

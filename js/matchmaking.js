@@ -34,6 +34,16 @@
     };
   }
 
+  function buildPromotedHostPayload(userId, peerId) {
+    return {
+      hostUserId: userId,
+      hostPeerId: peerId,
+      guestUserId: "",
+      guestPeerId: "",
+      status: "waiting"
+    };
+  }
+
   function fetchRoom(roomId) {
     return AppFirebase.getRoom(roomId);
   }
@@ -46,8 +56,16 @@
     return AppFirebase.createRoom(roomId, buildHostPayload(roomId, userId, peerId));
   }
 
+  function resetHostRoom(roomId, userId, peerId) {
+    return AppFirebase.updateRoom(roomId, buildHostPayload(roomId, userId, peerId));
+  }
+
   function joinGuestRoom(roomId, userId, peerId) {
     return AppFirebase.updateRoom(roomId, buildGuestPayload(userId, peerId));
+  }
+
+  function promoteGuestToHost(roomId, userId, peerId) {
+    return AppFirebase.updateRoom(roomId, buildPromotedHostPayload(userId, peerId));
   }
 
   function subscribeRoom(roomId, onData, onError) {
@@ -66,7 +84,9 @@
     resolveEntry: resolveEntry,
     fetchRoom: fetchRoom,
     createHostRoom: createHostRoom,
+    resetHostRoom: resetHostRoom,
     joinGuestRoom: joinGuestRoom,
+    promoteGuestToHost: promoteGuestToHost,
     subscribeRoom: subscribeRoom,
     getRemotePeerId: getRemotePeerId
   };
