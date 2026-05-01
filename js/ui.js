@@ -184,6 +184,7 @@
       startCaption: documentRef.getElementById("startCaption"),
       startButton: documentRef.getElementById("startButton"),
       hostSetupPanel: documentRef.getElementById("hostSetupPanel"),
+      hostSetupOpponentSlot: documentRef.getElementById("hostSetupOpponentSlot"),
       humanOpponentButton: documentRef.getElementById("humanOpponentButton"),
       comOpponentButton: documentRef.getElementById("comOpponentButton"),
       hostColorSwapButton: documentRef.getElementById("hostColorSwapButton"),
@@ -291,6 +292,9 @@
           !app.matchConfigured &&
           !app.game.lastMove &&
           !app.game.winner));
+        setHidden(elements.hostSetupOpponentSlot, app.opponentMode === "human" &&
+          !!app.roomData &&
+          !!app.roomData.guestUserId);
         elements.humanOpponentButton.classList.toggle("active", app.opponentMode === "human");
         elements.comOpponentButton.classList.toggle("active", app.opponentMode === "com");
         elements.hostColorSwapButton.classList.toggle("is-black-start", app.desiredHostColor === Game.BLACK);
