@@ -7,12 +7,21 @@
 
   function buildPageUrl(roomId, joinRequested) {
     var baseUrl = Platform.getAppBaseUrl();
+    var currentParams = new URLSearchParams(window.location.search);
+    var nextParams = new URLSearchParams();
 
-    if (!roomId) {
-      return baseUrl;
+    if (currentParams.get("vscode-livepreview") === "true") {
+      nextParams.set("vscode-livepreview", "true");
     }
-    var url = baseUrl + "?room=" + encodeURIComponent(roomId);
-    return joinRequested ? (url + "&join=1") : url;
+
+    if (roomId) {
+      nextParams.set("room", roomId);
+      if (joinRequested) {
+        nextParams.set("join", "1");
+      }
+    }
+
+    return nextParams.toString() ? (baseUrl + "?" + nextParams.toString()) : baseUrl;
   }
 
   function createState(ui) {
@@ -41,6 +50,7 @@
       p2pTimer: null,
       reconnectTimer: null,
       reconnectRetryTimer: null,
+      reconnectTickTimer: null,
       reconnecting: false,
       reconnectReason: "",
       reconnectDeadline: 0,
@@ -63,11 +73,32 @@
     var app = createState(ui);
     var storagePrefix = "liff-p2p-session-";
 
-    function render() {
+    function syncReconnectTicker() {
+      if (app.reconnecting) {
+        if (!app.reconnectTickTimer) {
+          app.reconnectTickTimer = window.setInterval(function () {
+            ui.render(app);
+          }, 250);
+        }
+        return;
+      }
+
+      if (app.reconnectTickTimer) {
+        window.clearInterval(app.reconnectTickTimer);
+        app.reconnectTickTimer = null;
+      }
+    }
+
+    function renderView(skipPersistence) {
       ui.render(app);
-      if (!app.pausePersistence) {
+      syncReconnectTicker();
+      if (!skipPersistence && !app.pausePersistence) {
         saveLocalState();
       }
+    }
+
+    function render() {
+      renderView(false);
     }
 
     function setMessage(text) {
@@ -308,7 +339,7 @@
         setOpponentStatus("ゲスト待機中");
         setMode("マッチング");
         setOpponentProfile("参加待ち", "");
-        setMessage("ルームを作成しました。URL を共有してゲストの参加を待ってください。Firestore にはルーム情報とピアIDだけを保持します。");
+        setMessage("ルームを作成しました。友だちを招待して参加を待っています。");
         return Matchmaking.createHostRoom(app.roomId, app.userId, app.peerId).then(function () {
           subscribeToRoom();
         });
@@ -318,7 +349,7 @@
         setTransport("ホスト待機中");
         setOpponentStatus("ルーム参加中…");
         setMode("マッチング");
-        setMessage("ルームに参加しました。ホストが P2P 接続を開始するまで待機します。");
+        setMessage("ルームに参加しました。ホストが接続を始めるまで待っています。");
         return Matchmaking.joinGuestRoom(app.roomId, app.userId, app.peerId).then(function () {
           subscribeToRoom();
           startGuestWaitTimer();
@@ -354,7 +385,7 @@
       setTransport("ゲスト待機中");
       setMode("マッチング");
       setOpponentStatus("ゲスト待機中");
-      setMessage("URL を共有してゲストの参加を待ってください。対局開始は接続後に START を押します。");
+      setMessage("友だちとの対戦に戻しました。相手の参加を待っています。");
       subscribeToRoom();
     }
 

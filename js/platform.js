@@ -27,7 +27,18 @@
   }
 
   function getAssetUrl(filename) {
-    return getAppBaseUrl() + filename;
+    return String(new URL(filename, window.location.href));
+  }
+
+  function isLocalPreviewEnvironment() {
+    var hostname = String(window.location.hostname || "").toLowerCase();
+    var params = new URLSearchParams(window.location.search);
+
+    return window.location.protocol === "file:" ||
+      hostname === "127.0.0.1" ||
+      hostname === "localhost" ||
+      hostname === "0.0.0.0" ||
+      params.get("vscode-livepreview") === "true";
   }
 
   function buildLiffRoomUrl(roomId) {
@@ -60,7 +71,10 @@
     }
 
     identityPromise = new Promise(function (resolve, reject) {
-      if (!window.liff || !window.APP_CONFIG.liffId || window.APP_CONFIG.liffId === "YOUR_LIFF_ID") {
+      if (isLocalPreviewEnvironment() ||
+          !window.liff ||
+          !window.APP_CONFIG.liffId ||
+          window.APP_CONFIG.liffId === "YOUR_LIFF_ID") {
         resolve({
           userId: getStableDebugUserId(),
           displayName: "デバッグユーザー",
@@ -70,10 +84,13 @@
       }
 
       liff.init({
-        liffId: window.APP_CONFIG.liffId,
-        withLoginOnExternalBrowser: true
+        liffId: window.APP_CONFIG.liffId
       }).then(function () {
         if (!liff.isLoggedIn()) {
+          if (typeof liff.login === "function") {
+            liff.login();
+            return;
+          }
           reject(new Error("LINE ログインを開始できませんでした。LIFF の設定を確認してください。"));
           return;
         }

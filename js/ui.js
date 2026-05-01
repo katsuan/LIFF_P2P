@@ -113,8 +113,32 @@
   function getReconnectText(app) {
     var remainingMs = Math.max(0, app.reconnectDeadline - Date.now());
     var remainingSeconds = Math.max(1, Math.ceil(remainingMs / 1000));
-    return app.reconnectReason + " 相手との接続を戻しています。あと" +
-      remainingSeconds + "秒待ち、戻れなければ COM に切り替わります。";
+    return app.reconnectReason + " 相手との接続を戻しています。[あと" +
+      remainingSeconds + "秒待ち] 戻れなければ COM に切り替わります。";
+  }
+
+  function shouldShowMessageBox(app) {
+    if (!app.status.message || app.reconnecting) {
+      return false;
+    }
+
+    if (app.game.lastMove || app.game.winner || app.rematch.incoming || app.rematch.outgoing) {
+      return true;
+    }
+
+    if (/エラー|失敗|満室|見つかりません|コピー|送信|終了/.test(app.status.message)) {
+      return true;
+    }
+
+    if (!app.roomId || app.status.mode === "ロビー" || app.status.mode === "マッチング") {
+      return false;
+    }
+
+    if (app.status.mode.indexOf("準備") !== -1) {
+      return false;
+    }
+
+    return false;
   }
 
   function hasJoinedOpponent(app) {
@@ -349,6 +373,8 @@
         var currentTurn = app.game.currentTurn;
         var outcome = Game.outcomeForColor(app.game.winner, app.myColor || Game.BLACK);
         var roomFlow = getRoomFlow(app);
+        var showMessage = shouldShowMessageBox(app);
+        var isOpponentTurn = !!app.myColor && !!currentTurn && currentTurn === Game.getOpponent(app.myColor);
 
         if (app.myColor) {
           myCardColor = app.myColor;
@@ -375,7 +401,10 @@
         setText(elements.opponentStatus, app.status.opponent);
         setText(elements.myScore, String(app.myColor ? (app.myColor === Game.BLACK ? counts.black : counts.white) : "-"));
         setText(elements.opponentScore, String(app.myColor ? (app.myColor === Game.BLACK ? counts.white : counts.black) : "-"));
-        setText(elements.messageBox, app.status.message);
+        setHidden(elements.messageBox, !showMessage);
+        if (showMessage) {
+          setText(elements.messageBox, app.status.message);
+        }
         setText(elements.transportStatus, app.status.transport);
         setText(elements.modeStatus, app.status.mode);
         setText(elements.roomSummary, app.roomId ? ("ルーム " + app.roomId) : "まだルームはありません");
@@ -393,7 +422,7 @@
         setCardColorClass(elements.myCard, myCardColor);
         setCardColorClass(elements.opponentCard, opponentCardColor);
         elements.myCard.classList.toggle("active-turn", !!app.myColor && !!currentTurn && currentTurn === app.myColor);
-        elements.opponentCard.classList.toggle("active-turn", !!app.myColor && !!currentTurn && currentTurn === Game.getOpponent(app.myColor));
+        elements.opponentCard.classList.toggle("active-turn", isOpponentTurn);
 
         setHidden(elements.reconnectNotice, !app.reconnecting);
         if (app.reconnecting) {
@@ -449,12 +478,19 @@
           col = Number(button.getAttribute("data-col"));
           key = row + "-" + col;
           cellValue = app.game.board[row][col];
+          canPlay = false;
+
+          if (!cellValue && !app.game.winner && !!validMap[key]) {
+            button.className = "cell valid";
+          } else {
+            button.className = "cell";
+          }
+
           canPlay = !!app.myColor &&
             app.game.currentTurn === app.myColor &&
             !app.game.winner &&
             !!validMap[key];
 
-          button.className = canPlay ? "cell valid" : "cell";
           button.disabled = !canPlay;
           button.innerHTML = "";
 
