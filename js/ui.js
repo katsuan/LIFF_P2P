@@ -321,6 +321,7 @@
       roomStateHint: documentRef.getElementById("roomStateHint"),
       roomCurrentRow: documentRef.getElementById("roomCurrentRow"),
       roomCurrentId: documentRef.getElementById("roomCurrentId"),
+      quickReconnectButton: documentRef.getElementById("quickReconnectButton"),
       hostInviteActions: documentRef.getElementById("hostInviteActions"),
       roomActionRow: documentRef.getElementById("roomActionRow"),
       roomActionNote: documentRef.getElementById("roomActionNote"),
@@ -378,6 +379,7 @@
       bind: function (handlers) {
         createBoardElements(elements.board, handlers.onBoardClick);
         elements.copyRoomIdButton.addEventListener("click", handlers.onCopyRoomId);
+        elements.quickReconnectButton.addEventListener("click", handlers.onQuickReconnect);
         elements.joinRoomButton.addEventListener("click", handlers.onJoinRoom);
         elements.shareButton.addEventListener("click", handlers.onShareRoom);
         elements.newRoomButton.addEventListener("click", handlers.onNewRoom);
@@ -466,6 +468,10 @@
         setAvatar(elements.myAvatar, app.displayName || "あなた", app.pictureUrl || "");
         setAvatar(elements.opponentAvatar, app.opponentDisplayName || "相手", app.opponentPictureUrl || "");
         setHidden(elements.roomCurrentRow, !roomFlow.showCurrentRoom);
+        if (elements.quickReconnectButton) {
+          elements.quickReconnectButton.disabled = !app.roomId;
+          setText(elements.quickReconnectButton, app.reconnecting ? "再試行" : "再接続");
+        }
         setHidden(elements.copyRoomIdButton, !app.roomId);
         setHidden(elements.roomActionRow, !app.roomId);
         setHidden(elements.shareButton, !roomFlow.showShare);

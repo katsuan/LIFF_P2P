@@ -269,6 +269,19 @@
       window.history.replaceState({}, "", buildPageUrl(app.roomId, app.joinRequested));
     }
 
+    function reconnectCurrentRoom() {
+      if (!app.roomId) {
+        setMessage("先にルームを開いてから再接続してください。");
+        return;
+      }
+      if (app.reconnecting) {
+        play.retryReconnectNow();
+        return;
+      }
+      AppPeer.disconnect();
+      Platform.reload(buildPageUrl(app.roomId, app.joinRequested), true);
+    }
+
     function isActiveMatch() {
       return !app.game.winner && (app.matchConfigured || !!app.game.lastMove);
     }
@@ -669,6 +682,7 @@
               setMessage(copied ? "ルームIDをコピーしました。" : "ルームIDのコピーに失敗しました。");
             });
           },
+          onQuickReconnect: reconnectCurrentRoom,
           onShareRoom: function () {
             if (!app.roomUrl) {
               setMessage("先にルームを作成してから招待してください。");
