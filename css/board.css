@@ -27,28 +27,21 @@
 
 .host-setup-panel {
   display: grid;
-  gap: 8px;
+  gap: 10px;
+  padding: 8px 2px 2px;
 }
 
 .host-setup-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  align-items: start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+  align-items: center;
 }
 
 .host-setup-slot {
-  display: grid;
-  gap: 6px;
-}
-
-.host-setup-slot-center {
-  grid-column: 1 / span 2;
-  justify-items: center;
-}
-
-.host-setup-slot-opponent {
-  grid-column: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   justify-items: start;
 }
 
@@ -57,10 +50,11 @@
   font-size: 0.72rem;
   font-weight: 700;
   line-height: 1;
+  white-space: nowrap;
 }
 
 .host-setup-hint {
-  text-align: right;
+  text-align: left;
 }
 
 .swap-color-button {
@@ -71,6 +65,7 @@
   border-radius: 999px;
   background: #edf0ea;
   color: #223127;
+  flex: 0 0 auto;
 }
 
 .swap-disc {
@@ -126,6 +121,10 @@
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.host-setup-slot .control-actions {
+  flex-wrap: nowrap;
 }
 
 .board-stage {
@@ -531,15 +530,20 @@
   }
 
   .host-setup-grid {
+    display: grid;
     grid-template-columns: minmax(0, 1fr);
-    gap: 8px;
+    gap: 10px;
   }
 
   .host-setup-slot {
-    justify-items: stretch;
+    display: grid;
+    gap: 6px;
+    justify-items: start;
+    align-items: start;
   }
 
   .host-setup-slot .control-actions {
+    flex-wrap: wrap;
     justify-content: flex-start;
   }
 

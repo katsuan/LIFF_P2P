@@ -84,6 +84,19 @@
     return label;
   }
 
+  function getOpponentName(app) {
+    if (app.opponentDisplayName) {
+      return app.opponentDisplayName;
+    }
+    if (app.opponentMode === "com") {
+      return "COM";
+    }
+    if (app.roomData && ((app.role === "host" && app.roomData.guestUserId) || (app.role === "guest" && app.roomData.hostUserId))) {
+      return "対戦相手";
+    }
+    return "参加待ち";
+  }
+
   function setCardColorClass(element, color) {
     if (!element) {
       return;
@@ -263,7 +276,7 @@
         setText(elements.myLabel, getMyLabel(app));
         setText(elements.opponentLabel, getOpponentLabel(app));
         setText(elements.myName, app.displayName || "あなた");
-        setText(elements.opponentName, app.opponentDisplayName || (app.opponentMode === "com" ? "COM" : "参加待ち"));
+        setText(elements.opponentName, getOpponentName(app));
         setText(elements.myStatus, "役割: " + getRoleName(app.role));
         setText(elements.opponentStatus, app.status.opponent);
         setText(elements.myScore, String(app.myColor ? (app.myColor === Game.BLACK ? counts.black : counts.white) : "-"));
