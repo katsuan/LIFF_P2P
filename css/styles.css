@@ -23,6 +23,19 @@ body {
     linear-gradient(180deg, #fbf7ef 0%, var(--bg) 100%);
 }
 
+body.boot-loading .top-actions,
+body.boot-loading .board-layout {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.boot-loading .top-actions,
+body.boot-loading .board-layout,
+.top-actions,
+.board-layout {
+  transition: opacity 160ms ease;
+}
+
 .app {
   max-width: 960px;
   margin: 0 auto;
@@ -86,6 +99,7 @@ h1 {
   display: grid;
   gap: 12px;
   min-width: 260px;
+  min-height: 212px;
 }
 
 .field-label {

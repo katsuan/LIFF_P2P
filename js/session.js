@@ -105,6 +105,12 @@
       renderView(false);
     }
 
+    function finishBoot() {
+      if (window.document && window.document.body) {
+        window.document.body.classList.remove("boot-loading");
+      }
+    }
+
     function setMessage(text) {
       app.status.message = text;
       render();
@@ -489,11 +495,10 @@
             if (!roomId) {
               setMessage("参加したいルームIDを入力してください。");
             } else if (roomId === app.roomId) {
-              if (AppPeer.isConnected() && !app.reconnecting) {
-                setMessage("現在このルームに接続中です。");
+              if (app.reconnecting) {
+                setMessage("再接続は上のバナーから行えます。");
               } else {
-                setMessage("同じルームへ再接続しています。");
-                Platform.reload(buildPageUrl(roomId, true), false);
+                setMessage("現在このルームを開いています。別のルームIDを入力してください。");
               }
             } else {
               window.location.href = buildPageUrl(roomId, true);
@@ -564,7 +569,10 @@
             return handleRoomEntry(null);
           }
           return Matchmaking.fetchRoom(app.roomId).then(handleRoomEntry);
+        }).then(function () {
+          finishBoot();
         }).catch(function (error) {
+          finishBoot();
           setTransport("エラー");
           setOpponentStatus("利用不可");
           setMode("停止");
