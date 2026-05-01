@@ -3,8 +3,12 @@
   var Platform = window.OthelloPlatform;
   var Matchmaking = window.OthelloMatchmaking;
   var P2P_TIMEOUT_MS = 5000;
+  var LOBBY_ROOM_ID = "lobby";
 
   function buildPageUrl(roomId, joinRequested) {
+    if (!roomId) {
+      return window.location.origin + window.location.pathname;
+    }
     var url = window.location.origin + window.location.pathname + "?room=" + encodeURIComponent(roomId);
     return joinRequested ? (url + "&join=1") : url;
   }
@@ -115,9 +119,9 @@
     }
 
     function updateRoomContext(roomId, joinRequested) {
-      app.roomId = roomId;
+      app.roomId = roomId || "";
       app.joinRequested = !!joinRequested;
-      app.roomUrl = buildPageUrl(roomId, true);
+      app.roomUrl = roomId ? buildPageUrl(roomId, true) : "";
       window.history.replaceState({}, "", buildPageUrl(roomId, joinRequested));
       render();
     }
@@ -184,13 +188,13 @@
 
     function buildPeerId() {
       var userPart = Platform.sanitizeForPeer(app.userId).slice(0, 16);
-      var roomPart = Platform.sanitizeForPeer(app.roomId).slice(-10);
+      var roomPart = Platform.sanitizeForPeer(app.roomId || LOBBY_ROOM_ID).slice(-10);
       return userPart + "-" + roomPart;
     }
 
     function prepareRoomContext() {
       var params = new URLSearchParams(window.location.search);
-      updateRoomContext(params.get("room") || Platform.generateId("room"), params.get("join") === "1");
+      updateRoomContext(params.get("room") || "", params.get("join") === "1");
     }
 
     var play = window.OthelloPlay.create(app, {
@@ -241,7 +245,28 @@
     }
 
     function handleRoomEntry(roomData) {
-      var entry = Matchmaking.resolveEntry(roomData, app.userId, app.joinRequested);
+      var entry;
+
+      if (!app.roomId) {
+        app.roomData = null;
+        app.role = "";
+        app.opponentMode = "human";
+        app.currentHostColor = "";
+        app.matchConfigured = false;
+        app.myColor = "";
+        clearRematch();
+        app.pausePersistence = true;
+        resetGame();
+        app.pausePersistence = false;
+        setTransport("未接続");
+        setOpponentStatus("待機中…");
+        setMode("ロビー");
+        setOpponentProfile("参加待ち", "");
+        setMessage("ルームIDを入力するか、新しいルームを作成してください。");
+        return Promise.resolve();
+      }
+
+      entry = Matchmaking.resolveEntry(roomData, app.userId, app.joinRequested);
       app.roomData = roomData;
 
       if (entry === "missing") {
@@ -380,7 +405,7 @@
             var roomId = ui.getRoomInput();
             if (!roomId) {
               setMessage("参加したいルームIDを入力してください。");
-            } else if (roomId === app.roomId && app.joinRequested) {
+            } else if (roomId === app.roomId) {
               setMessage("現在このルームを開いています。");
             } else {
               window.location.href = buildPageUrl(roomId, true);
@@ -396,11 +421,15 @@
             });
           },
           onShareRoom: function () {
+            if (!app.roomUrl) {
+              setMessage("先にルームを作成してから招待してください。");
+              return;
+            }
             Platform.shareRoom(app.roomId, app.roomUrl).then(function (result) {
               setMessage(result.message);
             });
           },
-          onNewRoom: function () { window.location.href = window.location.pathname; },
+          onNewRoom: function () { window.location.href = buildPageUrl(Platform.generateId("room"), false); },
           onRetryReconnect: play.retryReconnectNow,
           onHardReload: function () { AppPeer.disconnect(); Platform.reload(buildPageUrl(app.roomId, app.joinRequested), true); },
           onSelectHuman: selectHumanMode,
@@ -428,6 +457,9 @@
           Matchmaking.init();
           return bootstrapPeer();
         }).then(function () {
+          if (!app.roomId) {
+            return handleRoomEntry(null);
+          }
           return Matchmaking.fetchRoom(app.roomId).then(handleRoomEntry);
         }).catch(function (error) {
           setTransport("エラー");
