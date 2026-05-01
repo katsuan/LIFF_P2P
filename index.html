@@ -129,15 +129,17 @@
 
         <details class="debug-panel">
           <summary>このゲームについて</summary>
-          <div class="debug-grid">
-            <div class="small">Firestore はマッチング専用です。対局データは P2P だけで同期します。</div>
-            <div class="small">有効な手だけが押せるため、両端末で同じ盤面状態を保てます。</div>
+          <div class="debug-grid info-grid">
+            <div class="small info-pill">Firestore はマッチング専用</div>
+            <div class="small info-pill">対局同期は P2P のみ</div>
+            <div class="small info-pill">押せるのは有効な手だけ</div>
+            <div class="small info-pill">両端末で同じ盤面を維持</div>
           </div>
         </details>
 
         <details class="debug-panel">
           <summary>接続情報を確認</summary>
-          <div class="debug-grid">
+          <div class="debug-grid status-grid">
             <div class="debug-item">
               <div class="debug-label">通信方式</div>
               <div id="transportStatus" class="debug-value">起動中…</div>
