@@ -6,10 +6,12 @@
   var LOBBY_ROOM_ID = "lobby";
 
   function buildPageUrl(roomId, joinRequested) {
+    var baseUrl = Platform.getAppBaseUrl();
+
     if (!roomId) {
-      return window.location.origin + window.location.pathname;
+      return baseUrl;
     }
-    var url = window.location.origin + window.location.pathname + "?room=" + encodeURIComponent(roomId);
+    var url = baseUrl + "?room=" + encodeURIComponent(roomId);
     return joinRequested ? (url + "&join=1") : url;
   }
 

@@ -7,6 +7,36 @@
     return String(value || "player").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 28) || "player";
   }
 
+  function normalizePathname(pathname) {
+    var value = pathname || "/";
+    var lastSegment = value.split("/").pop();
+
+    if (value.charAt(0) !== "/") {
+      value = "/" + value;
+    }
+    if (value.charAt(value.length - 1) !== "/" && lastSegment.indexOf(".") === -1) {
+      value += "/";
+    }
+    return value;
+  }
+
+  function getAppBaseUrl() {
+    return window.location.origin + normalizePathname(window.location.pathname);
+  }
+
+  function getCurrentAppUrl() {
+    return getAppBaseUrl() + window.location.search;
+  }
+
+  function normalizeCurrentUrl() {
+    var canonicalUrl = getCurrentAppUrl();
+
+    if (window.location.href !== canonicalUrl) {
+      window.history.replaceState({}, "", canonicalUrl);
+    }
+    return canonicalUrl;
+  }
+
   function getStableDebugUserId() {
     var storageKey = "liff-p2p-debug-user-id";
     var existingId = "";
@@ -59,6 +89,7 @@
         return;
       }
 
+      normalizeCurrentUrl();
       liff.init({ liffId: window.APP_CONFIG.liffId }).then(function () {
         if (!liff.isLoggedIn()) {
           if (liff.isInClient()) {
@@ -72,7 +103,7 @@
           }
 
           markLoginAttempted();
-          liff.login({ redirectUri: window.location.href });
+          liff.login({ redirectUri: getCurrentAppUrl() });
           return;
         }
 
@@ -283,6 +314,8 @@
   window.OthelloPlatform = {
     generateId: generateId,
     sanitizeForPeer: sanitizeForPeer,
+    getAppBaseUrl: getAppBaseUrl,
+    getCurrentAppUrl: getCurrentAppUrl,
     initIdentity: initIdentity,
     copyText: copyText,
     shareRoom: shareRoom,
