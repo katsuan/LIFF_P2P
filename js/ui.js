@@ -320,6 +320,7 @@
       roomStateTitle: documentRef.getElementById("roomStateTitle"),
       roomStateHint: documentRef.getElementById("roomStateHint"),
       roomCurrentRow: documentRef.getElementById("roomCurrentRow"),
+      roomCurrentActions: documentRef.getElementById("roomCurrentActions"),
       roomCurrentId: documentRef.getElementById("roomCurrentId"),
       quickReconnectButton: documentRef.getElementById("quickReconnectButton"),
       hostInviteActions: documentRef.getElementById("hostInviteActions"),
@@ -468,6 +469,7 @@
         setAvatar(elements.myAvatar, app.displayName || "あなた", app.pictureUrl || "");
         setAvatar(elements.opponentAvatar, app.opponentDisplayName || "相手", app.opponentPictureUrl || "");
         setHidden(elements.roomCurrentRow, !roomFlow.showCurrentRoom);
+        setHidden(elements.roomCurrentActions, !app.roomId);
         if (elements.quickReconnectButton) {
           elements.quickReconnectButton.disabled = !app.roomId;
           setText(elements.quickReconnectButton, app.reconnecting ? "再試行" : "再接続");

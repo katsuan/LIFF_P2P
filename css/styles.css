@@ -137,6 +137,16 @@ h1 {
   flex-wrap: wrap;
 }
 
+.room-current-row {
+  display: block;
+}
+
+.room-current-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
 .button-row {
   justify-content: flex-start;
 }
@@ -160,6 +170,7 @@ h1 {
 .room-current-id {
   display: inline-flex;
   align-items: center;
+  width: 100%;
   min-width: 0;
   min-height: 42px;
   padding: 0 14px;
@@ -309,10 +320,7 @@ button:disabled {
   }
 
   .room-current-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    gap: 8px;
-    align-items: center;
+    display: block;
   }
 
   .link-row {
@@ -333,10 +341,16 @@ button:disabled {
     gap: 8px;
   }
 
+  .room-current-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
   .link-row .button-secondary,
   .button-row button,
   .room-tools-actions button,
-  .room-current-row .button-secondary {
+  .room-current-actions .button-secondary {
     width: 100%;
     min-width: 0;
     justify-content: center;
