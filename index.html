@@ -47,6 +47,28 @@
 
     <section class="board-layout">
       <div class="panel board-shell">
+        <div id="hostSetupPanel" class="host-setup-panel hidden">
+          <div class="host-setup-grid">
+            <div class="host-setup-slot">
+              <div class="host-setup-label">色変更</div>
+              <button id="hostColorSwapButton" class="swap-color-button is-black-start" type="button" aria-label="先手と色を切り替える"
+                title="先手と色を切り替える">
+                <span class="swap-disc swap-disc-black"></span>
+                <span class="swap-arrow">↻</span>
+                <span class="swap-disc swap-disc-white"></span>
+              </button>
+            </div>
+            <div id="hostSetupOpponentSlot" class="host-setup-slot">
+              <div class="host-setup-label">対戦相手</div>
+              <div class="control-actions">
+                <button id="humanOpponentButton" class="button-chip active" type="button">友だち</button>
+                <button id="comOpponentButton" class="button-chip" type="button">COM</button>
+              </div>
+            </div>
+          </div>
+          <div id="controlHint" class="small host-setup-hint">黒が先手です。ボタンで自分の色だけを切り替えます。</div>
+        </div>
+
         <div class="board-head">
           <div id="myCard" class="player-card">
             <div id="myAvatar" class="avatar">?</div>
@@ -70,27 +92,6 @@
               <div id="opponentStatus" class="player-status">待機中…</div>
             </div>
           </div>
-        </div>
-
-        <div id="hostSetupPanel" class="host-setup-panel hidden">
-          <div class="host-setup-grid">
-            <div class="host-setup-slot">
-              <div class="host-setup-label">色変更</div>
-              <button id="hostColorSwapButton" class="swap-color-button is-black-start" type="button" aria-label="先手と色を切り替える" title="先手と色を切り替える">
-                <span class="swap-disc swap-disc-black"></span>
-                <span class="swap-arrow">↻</span>
-                <span class="swap-disc swap-disc-white"></span>
-              </button>
-            </div>
-            <div id="hostSetupOpponentSlot" class="host-setup-slot">
-              <div class="host-setup-label">対戦相手</div>
-              <div class="control-actions">
-                <button id="humanOpponentButton" class="button-chip active" type="button">友だち</button>
-                <button id="comOpponentButton" class="button-chip" type="button">COM</button>
-              </div>
-            </div>
-          </div>
-          <div id="controlHint" class="small host-setup-hint">黒が先手です。ボタンで自分の色だけを切り替えます。</div>
         </div>
 
         <div id="reconnectNotice" class="status-banner hidden">
