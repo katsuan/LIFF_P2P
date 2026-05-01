@@ -24,19 +24,6 @@
     return window.location.origin + normalizePathname(window.location.pathname);
   }
 
-  function getCurrentAppUrl() {
-    return getAppBaseUrl() + window.location.search;
-  }
-
-  function normalizeCurrentUrl() {
-    var canonicalUrl = getCurrentAppUrl();
-
-    if (window.location.href !== canonicalUrl) {
-      window.history.replaceState({}, "", canonicalUrl);
-    }
-    return canonicalUrl;
-  }
-
   function getStableDebugUserId() {
     var storageKey = "liff-p2p-debug-user-id";
     var existingId = "";
@@ -54,32 +41,8 @@
     return existingId;
   }
 
-  function getLoginAttemptKey() {
-    return "liff-p2p-login-attempted";
-  }
-
-  function hasLoginAttempted() {
-    try {
-      return window.sessionStorage.getItem(getLoginAttemptKey()) === "1";
-    } catch (error) {
-      return false;
-    }
-  }
-
-  function markLoginAttempted() {
-    try {
-      window.sessionStorage.setItem(getLoginAttemptKey(), "1");
-    } catch (error) {}
-  }
-
-  function clearLoginAttempt() {
-    try {
-      window.sessionStorage.removeItem(getLoginAttemptKey());
-    } catch (error) {}
-  }
-
   function initIdentity() {
-    return new Promise(function (resolve, reject) {
+    return new Promise(function (resolve) {
       if (!window.liff || !window.APP_CONFIG.liffId || window.APP_CONFIG.liffId === "YOUR_LIFF_ID") {
         resolve({
           userId: getStableDebugUserId(),
@@ -89,25 +52,12 @@
         return;
       }
 
-      normalizeCurrentUrl();
       liff.init({ liffId: window.APP_CONFIG.liffId }).then(function () {
         if (!liff.isLoggedIn()) {
-          if (liff.isInClient()) {
-            reject(new Error("LINE ログインを完了できませんでした。LIFF のエンドポイントURLを確認してください。"));
-            return;
-          }
-
-          if (hasLoginAttempted()) {
-            reject(new Error("LINE ログインが完了しませんでした。ブラウザを閉じて、もう一度開き直してください。"));
-            return;
-          }
-
-          markLoginAttempted();
-          liff.login({ redirectUri: getCurrentAppUrl() });
+          liff.login();
           return;
         }
 
-        clearLoginAttempt();
         liff.getProfile().then(function (profile) {
           resolve({
             userId: profile.userId,
@@ -315,7 +265,6 @@
     generateId: generateId,
     sanitizeForPeer: sanitizeForPeer,
     getAppBaseUrl: getAppBaseUrl,
-    getCurrentAppUrl: getCurrentAppUrl,
     initIdentity: initIdentity,
     copyText: copyText,
     shareRoom: shareRoom,
