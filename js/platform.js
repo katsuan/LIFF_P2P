@@ -228,6 +228,7 @@
         footer: {
           type: "box",
           layout: "vertical",
+          spacing: "sm",
           contents: [
             {
               type: "button",
@@ -238,6 +239,16 @@
                 type: "uri",
                 label: "このルームに参加",
                 uri: shareUrl
+              }
+            },
+            {
+              type: "button",
+              style: "secondary",
+              height: "sm",
+              action: {
+                type: "clipboard",
+                label: "ルームIDをコピー",
+                clipboardText: roomId
               }
             }
           ]
