@@ -24,6 +24,30 @@
     return existingId;
   }
 
+  function getLoginAttemptKey() {
+    return "liff-p2p-login-attempted";
+  }
+
+  function hasLoginAttempted() {
+    try {
+      return window.sessionStorage.getItem(getLoginAttemptKey()) === "1";
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function markLoginAttempted() {
+    try {
+      window.sessionStorage.setItem(getLoginAttemptKey(), "1");
+    } catch (error) {}
+  }
+
+  function clearLoginAttempt() {
+    try {
+      window.sessionStorage.removeItem(getLoginAttemptKey());
+    } catch (error) {}
+  }
+
   function initIdentity() {
     return new Promise(function (resolve, reject) {
       if (!window.liff || !window.APP_CONFIG.liffId || window.APP_CONFIG.liffId === "YOUR_LIFF_ID") {
@@ -35,15 +59,24 @@
         return;
       }
 
-      liff.init({
-        liffId: window.APP_CONFIG.liffId,
-        withLoginOnExternalBrowser: true
-      }).then(function () {
+      liff.init({ liffId: window.APP_CONFIG.liffId }).then(function () {
         if (!liff.isLoggedIn()) {
-          reject(new Error("LINE ログインを完了できませんでした。LIFF のエンドポイントURLと共有リンク設定を確認してください。"));
+          if (liff.isInClient()) {
+            reject(new Error("LINE ログインを完了できませんでした。LIFF のエンドポイントURLを確認してください。"));
+            return;
+          }
+
+          if (hasLoginAttempted()) {
+            reject(new Error("LINE ログインが完了しませんでした。ブラウザを閉じて、もう一度開き直してください。"));
+            return;
+          }
+
+          markLoginAttempted();
+          liff.login({ redirectUri: window.location.href });
           return;
         }
 
+        clearLoginAttempt();
         liff.getProfile().then(function (profile) {
           resolve({
             userId: profile.userId,
