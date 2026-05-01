@@ -54,6 +54,10 @@
       reconnecting: false,
       reconnectReason: "",
       reconnectDeadline: 0,
+      staleGuest: false,
+      spectatorMode: false,
+      resumePending: false,
+      resumeRequesterName: "",
       comTimer: null,
       resultOverlayDismissed: false,
       pausePersistence: false,
@@ -140,6 +144,12 @@
       app.rematch.incoming = false;
     }
 
+    function clearResumeState() {
+      app.spectatorMode = false;
+      app.resumePending = false;
+      app.resumeRequesterName = "";
+    }
+
     function resetGame() {
       app.game = Game.createFreshGame();
       app.resultOverlayDismissed = false;
@@ -205,7 +215,7 @@
       }
 
       if (!saved || saved.userId !== app.userId || saved.role !== app.role) {
-        return;
+        return false;
       }
 
       app.opponentMode = saved.opponentMode || app.opponentMode;
@@ -213,9 +223,11 @@
       app.currentHostColor = saved.currentHostColor || app.currentHostColor;
       app.matchConfigured = !!saved.matchConfigured;
       app.myColor = saved.myColor || app.myColor;
+      clearResumeState();
       if (saved.game && saved.game.board) {
         app.game = saved.game;
       }
+      return true;
     }
 
     function getRemotePeerId() {
@@ -263,11 +275,11 @@
           return;
         }
         if (app.role === "host" && roomData.guestUserId) {
-          setOpponentStatus("ゲストが参加しました");
+          setOpponentStatus(app.staleGuest ? "切断済み" : "ゲストが参加しました");
         } else if (app.role === "guest") {
           setOpponentStatus(roomData.hostPeerId ? "ホストからの接続を待っています…" : "ホストの準備待ちです");
         }
-        if (getRemotePeerId()) {
+        if (getRemotePeerId() && !app.staleGuest) {
           play.connectToRemotePeer(getRemotePeerId());
         }
       }, function (error) {
@@ -294,6 +306,7 @@
         app.currentHostColor = "";
         app.matchConfigured = false;
         app.myColor = "";
+        clearResumeState();
         clearRematch();
         app.pausePersistence = true;
         resetGame();
@@ -327,12 +340,22 @@
       app.currentHostColor = "";
       app.matchConfigured = false;
       app.myColor = "";
+      clearResumeState();
       clearRematch();
       app.pausePersistence = true;
       resetGame();
-      restoreLocalState();
+      app.staleGuest = false;
+      app.hadLocalSession = restoreLocalState();
       app.pausePersistence = false;
       render();
+
+      if (entry === "resume-host" &&
+          !!roomData.guestUserId &&
+          !app.hadLocalSession &&
+          !app.joinRequested) {
+        app.staleGuest = true;
+        setOpponentProfile("参加待ち", "");
+      }
 
       if (entry === "create-host") {
         setTransport("ゲスト待機中");
@@ -357,11 +380,15 @@
       }
 
       setTransport(entry === "resume-host" ? "ゲスト待機中" : "ホスト待機中");
-      setOpponentStatus(entry === "resume-host" ? "ゲスト待機中" : "ホストからの接続を待っています…");
+      setOpponentStatus(entry === "resume-host" ?
+        (app.staleGuest ? "切断済み" : "ゲスト待機中") :
+        "ホストからの接続を待っています…");
       setMode("マッチング");
-      setMessage("既存のルームに再接続しました。接続状態を確認しています。");
+      setMessage(app.staleGuest ?
+        "以前の対戦相手は切断済みです。再接続を待つか、COM に切り替えられます。" :
+        "既存のルームに再接続しました。接続状態を確認しています。");
       subscribeToRoom();
-      if (getRemotePeerId()) {
+      if (getRemotePeerId() && !app.staleGuest) {
         play.connectToRemotePeer(getRemotePeerId());
       } else if (entry === "resume-guest") {
         startGuestWaitTimer();
@@ -376,6 +403,7 @@
       }
       app.opponentMode = "human";
       app.transportMode = "matchmaking";
+      clearResumeState();
       app.currentHostColor = "";
       app.matchConfigured = false;
       app.myColor = "";
@@ -396,6 +424,7 @@
       }
       app.opponentMode = "com";
       app.transportMode = "com";
+      clearResumeState();
       app.currentHostColor = "";
       app.matchConfigured = false;
       app.myColor = "";
@@ -424,10 +453,25 @@
         onIncomingConnection: function () { setOpponentStatus("ピア接続要求を受信しました"); },
         onConnectionOpen: play.startP2PPlay,
         onData: play.handlePeerData,
-        onConnectionClose: function () { app.pendingPeerTarget = ""; play.beginReconnect("P2P 接続が切断されました。"); },
-        onConnectionError: function (error) { app.pendingPeerTarget = ""; play.beginReconnect("P2P 接続エラーが発生しました: " + error.message); },
+        onConnectionClose: function () {
+          app.pendingPeerTarget = "";
+          if (!play.handleResumeConnectionLost()) {
+            play.beginReconnect("P2P 接続が切断されました。");
+          }
+        },
+        onConnectionError: function (error) {
+          app.pendingPeerTarget = "";
+          if (!play.handleResumeConnectionLost()) {
+            play.beginReconnect("P2P 接続エラーが発生しました: " + error.message);
+          }
+        },
         onPeerError: function (error) { setMessage("PeerJS エラー: " + error.message); },
-        onPeerDisconnected: function () { app.pendingPeerTarget = ""; play.beginReconnect("ピアのシグナリング接続が切断されました。"); }
+        onPeerDisconnected: function () {
+          app.pendingPeerTarget = "";
+          if (!play.handleResumeConnectionLost()) {
+            play.beginReconnect("ピアのシグナリング接続が切断されました。");
+          }
+        }
       });
     }
 
@@ -436,7 +480,7 @@
         prepareRoomContext();
         ui.bind({
           onBoardClick: function (event) {
-            if (app.myColor && app.game.currentTurn === app.myColor && !app.game.winner) {
+            if (app.myColor && !app.spectatorMode && !app.resumePending && app.game.currentTurn === app.myColor && !app.game.winner) {
               play.sendMove(Number(event.currentTarget.getAttribute("data-row")), Number(event.currentTarget.getAttribute("data-col")));
             }
           },
@@ -477,6 +521,8 @@
           onRetryReconnect: play.retryReconnectNow,
           onHardReload: function () { AppPeer.disconnect(); Platform.reload(buildPageUrl(app.roomId, app.joinRequested), true); },
           onStartGame: play.startMatch,
+          onResumeContinue: play.resumeCurrentGame,
+          onResumeRestart: play.restartReturnedGame,
           onSelectHuman: selectHumanMode,
           onSelectCom: selectComMode,
           onSwapColors: toggleHostColor,

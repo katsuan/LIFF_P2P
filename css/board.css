@@ -231,6 +231,21 @@
   box-shadow: 0 0 0 4px rgba(255, 217, 102, 0.16);
 }
 
+.cell.opponent-valid::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16%;
+  height: 16%;
+  min-width: 10px;
+  min-height: 10px;
+  border-radius: 50%;
+  background: rgba(188, 196, 191, 0.88);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 4px rgba(96, 108, 101, 0.12);
+}
+
 .disc {
   position: absolute;
   inset: 12%;

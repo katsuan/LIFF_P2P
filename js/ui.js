@@ -85,6 +85,9 @@
   }
 
   function getOpponentName(app) {
+    if (app.staleGuest) {
+      return "参加待ち";
+    }
     if (app.opponentDisplayName) {
       return app.opponentDisplayName;
     }
@@ -144,7 +147,8 @@
   function hasJoinedOpponent(app) {
     return app.opponentMode === "human" &&
       !!app.roomData &&
-      !!app.roomData.guestUserId;
+      !!app.roomData.guestUserId &&
+      !app.staleGuest;
   }
 
   function getRoomFlow(app) {
@@ -250,7 +254,7 @@
   }
 
   function shouldShowStartOverlay(app) {
-    if (app.game.winner || app.matchConfigured || app.reconnecting) {
+    if (app.game.winner || app.matchConfigured || app.reconnecting || app.resumePending || app.spectatorMode) {
       return false;
     }
     if (app.opponentMode === "com") {
@@ -308,6 +312,11 @@
       reconnectText: documentRef.getElementById("reconnectText"),
       retryReconnectButton: documentRef.getElementById("retryReconnectButton"),
       reloadButton: documentRef.getElementById("reloadButton"),
+      resumeNotice: documentRef.getElementById("resumeNotice"),
+      resumeText: documentRef.getElementById("resumeText"),
+      resumeActions: documentRef.getElementById("resumeActions"),
+      resumeContinueButton: documentRef.getElementById("resumeContinueButton"),
+      resumeRestartButton: documentRef.getElementById("resumeRestartButton"),
       startOverlay: documentRef.getElementById("startOverlay"),
       startWord: documentRef.getElementById("startWord"),
       startCaption: documentRef.getElementById("startCaption"),
@@ -340,6 +349,8 @@
         elements.newRoomButton.addEventListener("click", handlers.onNewRoom);
         elements.retryReconnectButton.addEventListener("click", handlers.onRetryReconnect);
         elements.reloadButton.addEventListener("click", handlers.onHardReload);
+        elements.resumeContinueButton.addEventListener("click", handlers.onResumeContinue);
+        elements.resumeRestartButton.addEventListener("click", handlers.onResumeRestart);
         elements.startButton.addEventListener("click", handlers.onStartGame);
         elements.humanOpponentButton.addEventListener("click", handlers.onSelectHuman);
         elements.comOpponentButton.addEventListener("click", handlers.onSelectCom);
@@ -383,6 +394,7 @@
         var roomFlow = getRoomFlow(app);
         var showMessage = shouldShowMessageBox(app);
         var isOpponentTurn = !!app.myColor && !!currentTurn && currentTurn === Game.getOpponent(app.myColor);
+        var isMyTurn = !!app.myColor && !!currentTurn && currentTurn === app.myColor;
 
         if (app.myColor) {
           myCardColor = app.myColor;
@@ -442,6 +454,15 @@
           setText(elements.reconnectText, getReconnectText(app));
         }
 
+        setHidden(elements.resumeNotice, !(app.resumePending || app.spectatorMode));
+        setHidden(elements.resumeActions, !app.resumePending);
+        if (app.resumePending) {
+          setText(elements.resumeText,
+            (app.resumeRequesterName || "相手") + " が戻りました。今の盤面から再開するか、最初からやり直すか選んでください。");
+        } else if (app.spectatorMode) {
+          setText(elements.resumeText, "相手が COM で継続中です。今の盤面を表示しています。再開方法の選択を待っています。");
+        }
+
         setHidden(elements.hostSetupPanel, !(app.role === "host" &&
           app.transportMode !== "reconnecting" &&
           !app.matchConfigured &&
@@ -449,7 +470,8 @@
           !app.game.winner));
         setHidden(elements.hostSetupOpponentSlot, app.opponentMode === "human" &&
           !!app.roomData &&
-          !!app.roomData.guestUserId);
+          !!app.roomData.guestUserId &&
+          !app.staleGuest);
         elements.humanOpponentButton.classList.toggle("active", app.opponentMode === "human");
         elements.comOpponentButton.classList.toggle("active", app.opponentMode === "com");
         elements.hostColorSwapButton.classList.toggle("is-black-start", app.desiredHostColor === Game.BLACK);
@@ -494,13 +516,15 @@
           canPlay = false;
 
           if (!cellValue && !app.game.winner && !!validMap[key]) {
-            button.className = "cell valid";
+            button.className = isMyTurn ? "cell valid" : "cell opponent-valid";
           } else {
             button.className = "cell";
           }
 
           canPlay = !!app.myColor &&
-            app.game.currentTurn === app.myColor &&
+            !app.spectatorMode &&
+            !app.resumePending &&
+            isMyTurn &&
             !app.game.winner &&
             !!validMap[key];
 
