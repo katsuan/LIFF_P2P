@@ -385,14 +385,23 @@
 }
 
 .player-status,
+.player-presence,
 .small,
 .debug-label {
   color: var(--muted);
 }
 
 .player-status,
+.player-presence,
 .small {
   font-size: 0.88rem;
+}
+
+.player-presence {
+  min-height: 1.25em;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .player-status {
@@ -664,6 +673,7 @@
   }
 
   .player-name,
+  .player-presence,
   .player-status {
     display: none;
   }

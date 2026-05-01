@@ -120,6 +120,56 @@
     return app.role ? "接続済み" : "待機中…";
   }
 
+  function getMyPresenceText(app) {
+    if (app.reconnecting) {
+      return "再接続中";
+    }
+    if (app.spectatorMode) {
+      return "観戦中";
+    }
+    if (app.role) {
+      return AppPeer.isConnected() || app.opponentMode === "com" ? "オンライン" : "待機中";
+    }
+    return "接続前";
+  }
+
+  function getOpponentPresenceText(app) {
+    if (app.opponentMode === "com") {
+      return "COM";
+    }
+    if (app.resumePending) {
+      return "復帰済み";
+    }
+    if (app.spectatorMode) {
+      return "オンライン";
+    }
+    if (app.reconnecting) {
+      return "再接続中";
+    }
+    if (AppPeer.isConnected()) {
+      return "オンライン";
+    }
+    if (app.staleGuest) {
+      return "オフライン";
+    }
+    if (app.role === "host") {
+      if (app.roomData && app.roomData.guestUserId) {
+        return "オフライン";
+      }
+      return "未参加";
+    }
+    if (app.role === "guest") {
+      if (app.roomData && app.roomData.hostPeerId) {
+        return "接続待ち";
+      }
+      if (app.roomData && app.roomData.hostUserId) {
+        return "オフライン";
+      }
+      return "未参加";
+    }
+    return "未参加";
+  }
+
   function getOpponentStatusText(app) {
     if (app.spectatorMode) {
       return "選択待ち";
@@ -339,7 +389,9 @@
       myLabel: documentRef.getElementById("myLabel"),
       opponentLabel: documentRef.getElementById("opponentLabel"),
       myName: documentRef.getElementById("myName"),
+      myPresence: documentRef.getElementById("myPresence"),
       opponentName: documentRef.getElementById("opponentName"),
+      opponentPresence: documentRef.getElementById("opponentPresence"),
       myStatus: documentRef.getElementById("myStatus"),
       opponentStatus: documentRef.getElementById("opponentStatus"),
       myScore: documentRef.getElementById("myScore"),
@@ -454,6 +506,8 @@
         setText(elements.opponentLabel, getOpponentLabel(app));
         setText(elements.myName, app.displayName || "あなた");
         setText(elements.opponentName, getOpponentName(app));
+        setText(elements.myPresence, getMyPresenceText(app));
+        setText(elements.opponentPresence, getOpponentPresenceText(app));
         setText(elements.myStatus, getMyStatusText(app));
         setText(elements.opponentStatus, getOpponentStatusText(app));
         setText(elements.myScore, String(app.myColor ? (app.myColor === Game.BLACK ? counts.black : counts.white) : "-"));
