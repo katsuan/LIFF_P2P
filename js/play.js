@@ -2,11 +2,42 @@
   var Game = window.OthelloGame;
   var RECONNECT_TIMEOUT_MS = 8000;
   var RECONNECT_RETRY_MS = 1500;
+  var RECONNECT_HANDOFF_TIMEOUT_MS = 1800;
+  var REMATCH_RESPONSE_TIMEOUT_MS = 12000;
 
   function create(app, deps) {
     function stopReconnectTimers() {
       deps.stopTimer("reconnectTimer");
       deps.stopTimer("reconnectRetryTimer");
+    }
+
+    function withFallbackTimeout(promise, timeoutMs) {
+      return new Promise(function (resolve, reject) {
+        var settled = false;
+        var timeoutId = window.setTimeout(function () {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          resolve(false);
+        }, timeoutMs);
+
+        promise.then(function (result) {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          window.clearTimeout(timeoutId);
+          resolve(result);
+        }).catch(function (error) {
+          if (settled) {
+            return;
+          }
+          settled = true;
+          window.clearTimeout(timeoutId);
+          reject(error);
+        });
+      });
     }
 
     function clearResumeState() {
@@ -411,7 +442,7 @@
 
         fallbackResult = deps.onReconnectTimeout("P2P の再接続に失敗しました。");
         if (fallbackResult && typeof fallbackResult.then === "function") {
-          fallbackResult.then(function (handled) {
+          withFallbackTimeout(fallbackResult, RECONNECT_HANDOFF_TIMEOUT_MS).then(function (handled) {
             if (!handled && !AppPeer.isConnected()) {
               switchToCom("P2P の再接続に失敗しました。");
             }
@@ -547,7 +578,17 @@
       try {
         AppPeer.send({ type: "rematch-request" });
         deps.setMessage("再戦リクエストを送信しました。返答を待っています。");
+        deps.stopTimer("rematchTimer");
+        app.rematchTimer = window.setTimeout(function () {
+          if (!app.rematch.outgoing) {
+            return;
+          }
+          app.rematch.outgoing = false;
+          deps.setMessage("再戦リクエストに返答がありませんでした。もう一度送るか、この試合を閉じてください。");
+          deps.render();
+        }, REMATCH_RESPONSE_TIMEOUT_MS);
       } catch (error) {
+        deps.stopTimer("rematchTimer");
         app.rematch.outgoing = false;
         beginReconnect("再戦リクエストの送信に失敗しました。 " + error.message);
       }

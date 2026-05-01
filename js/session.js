@@ -48,6 +48,7 @@
       roomUnsubscribe: null,
       pendingPeerTarget: "",
       p2pTimer: null,
+      rematchTimer: null,
       reconnectTimer: null,
       reconnectRetryTimer: null,
       reconnectTickTimer: null,
@@ -149,6 +150,7 @@
     }
 
     function clearRematch() {
+      stopTimer("rematchTimer");
       app.rematch.outgoing = false;
       app.rematch.incoming = false;
     }
