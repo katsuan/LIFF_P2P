@@ -56,6 +56,31 @@
       maybeScheduleComTurn();
     }
 
+    function prepareRematchSetup() {
+      var seededColor = app.currentHostColor || app.desiredHostColor || Game.BLACK;
+
+      deps.clearRematch();
+      app.currentHostColor = "";
+      app.desiredHostColor = seededColor;
+      app.matchConfigured = false;
+      app.myColor = "";
+      deps.resetGame();
+
+      if (app.opponentMode === "com") {
+        deps.setTransport("ローカル");
+        deps.setMode("COM 再戦準備");
+        deps.setOpponentStatus("START 待ち");
+        deps.setMessage("再戦の設定を選んで START を押してください。");
+        return;
+      }
+
+      deps.setMode("再戦準備");
+      deps.setOpponentStatus(app.role === "host" ? "START 待ち" : "ホストの設定待ち");
+      deps.setMessage(app.role === "host" ?
+        "再戦の設定を選んで START を押してください。" :
+        "ホストが再戦の設定を選んでいます。");
+    }
+
     function startMatch() {
       if (app.matchConfigured) {
         return;
@@ -259,7 +284,7 @@
 
     function requestRematch() {
       if (app.opponentMode === "com") {
-        applyMatchSettings(app.currentHostColor || app.desiredHostColor || Game.BLACK, true);
+        prepareRematchSetup();
         return;
       }
       if (!AppPeer.isConnected()) {
@@ -290,11 +315,11 @@
       }
       app.rematch.incoming = false;
       if (app.role === "host") {
-        AppPeer.send({ type: "rematch-start", hostColor: app.currentHostColor || app.desiredHostColor || Game.BLACK });
-        applyMatchSettings(app.currentHostColor || app.desiredHostColor || Game.BLACK, true);
+        AppPeer.send({ type: "rematch-setup" });
+        prepareRematchSetup();
       } else {
         app.rematch.outgoing = true;
-        deps.setMessage("再戦を承認しました。ホストの開始を待っています。");
+        deps.setMessage("再戦を承認しました。ホストが設定を選んでいます。");
       }
       deps.render();
     }
@@ -343,15 +368,17 @@
         deps.setMessage("相手が再戦を希望しています。");
       } else if (data.type === "rematch-accept") {
         if (app.role === "host" && app.rematch.outgoing) {
-          AppPeer.send({ type: "rematch-start", hostColor: app.currentHostColor || app.desiredHostColor || Game.BLACK });
-          applyMatchSettings(app.currentHostColor || app.desiredHostColor || Game.BLACK, true);
+          AppPeer.send({ type: "rematch-setup" });
+          prepareRematchSetup();
         } else {
-          deps.setMessage("相手が再戦を承認しました。開始を待っています。");
+          deps.setMessage("相手が再戦を承認しました。ホストが設定を選んでいます。");
         }
       } else if (data.type === "rematch-reject") {
         deps.clearRematch();
         app.resultOverlayDismissed = false;
         deps.setMessage("相手は再戦しませんでした。");
+      } else if (data.type === "rematch-setup") {
+        prepareRematchSetup();
       } else if (data.type === "rematch-start") {
         applyMatchSettings(data.hostColor, true);
       }
