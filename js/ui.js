@@ -93,6 +93,9 @@
   }
 
   function getMyStatusText(app) {
+    var outcome;
+    var isMyTurn;
+
     if (app.spectatorMode) {
       return "観戦中";
     }
@@ -100,12 +103,26 @@
       return "再開方法を選択中";
     }
     if (isHumanP2PSetup(app)) {
-      return app.localStartReady ? "START 準備OK" : "START 前";
+      return app.localStartReady ? "準備OK" : "START 待ち";
     }
     if (app.opponentMode === "com" && !app.matchConfigured && !app.game.lastMove && !app.game.winner) {
       return "START 待ち";
     }
-    return app.role ? "接続済み" : "待機中…";
+    if (app.game.winner && app.myColor) {
+      outcome = Game.outcomeForColor(app.game.winner, app.myColor);
+      if (outcome === "win") {
+        return "勝ちました";
+      }
+      if (outcome === "lose") {
+        return "負けました";
+      }
+      return "引き分け";
+    }
+    if (app.matchConfigured && app.myColor && app.game.currentTurn) {
+      isMyTurn = app.game.currentTurn === app.myColor;
+      return isMyTurn ? "あなたの手番" : "相手の手番";
+    }
+    return app.role ? "準備中" : "待機中";
   }
 
   function getMyPresenceText(app) {
@@ -159,14 +176,43 @@
   }
 
   function getOpponentStatusText(app) {
+    var opponentColor;
+    var opponentWon;
+
     if (app.spectatorMode) {
       return "選択待ち";
     }
     if (app.resumePending) {
-      return "復帰しました";
+      return "返答待ち";
     }
     if (isHumanP2PSetup(app)) {
-      return app.remoteStartReady ? "START 準備OK" : "START 前";
+      return app.remoteStartReady ? "準備OK" : "START 待ち";
+    }
+    if (app.game.winner && app.myColor) {
+      opponentColor = Game.getOpponent(app.myColor);
+      opponentWon = app.game.winner === opponentColor;
+      if (app.game.winner === "draw") {
+        return "引き分け";
+      }
+      return opponentWon ? "勝ちました" : "負けました";
+    }
+    if (app.matchConfigured && app.myColor && app.game.currentTurn) {
+      return app.game.currentTurn === app.myColor ? "あなたを待っています" : "手を選んでいます";
+    }
+    if (app.opponentMode === "com") {
+      return "START 待ち";
+    }
+    if (app.staleGuest) {
+      return "切断済み";
+    }
+    if (app.role === "host") {
+      if (app.roomData && app.roomData.guestUserId) {
+        return "接続待ち";
+      }
+      return "参加待ち";
+    }
+    if (app.role === "guest") {
+      return "接続待ち";
     }
     return app.status.opponent;
   }
@@ -196,19 +242,15 @@
       return false;
     }
 
-    if (app.game.lastMove || app.game.winner || app.rematch.incoming || app.rematch.outgoing) {
+    if (app.rematch.incoming || app.rematch.outgoing) {
       return true;
     }
 
-    if (/エラー|失敗|満室|見つかりません|コピー|送信|終了/.test(app.status.message)) {
+    if (/エラー|失敗|満室|見つかりません|コピー|送信|終了|再戦|再接続|復帰|引き継|引継|観戦|置ける場所がありません/.test(app.status.message)) {
       return true;
     }
 
     if (!app.roomId || app.status.mode === "ロビー" || app.status.mode === "マッチング") {
-      return false;
-    }
-
-    if (app.status.mode.indexOf("準備") !== -1) {
       return false;
     }
 
@@ -229,8 +271,8 @@
     if (!app.roomId) {
       return {
         label: "はじめる",
-        title: "新しい対局を作るか、招待されたルームに参加します。",
-        hint: "友だちと遊ぶ時は、先に対局を作ってから招待します。",
+        title: "新しい対局を作るか、ルームIDで参加します。",
+        hint: "友だちと遊ぶ時は、先に対局を作って招待します。",
         toolsSummary: "別のルームに参加",
         joinLabel: "参加する",
         newRoomLabel: "新しい対局を作る",
@@ -243,10 +285,12 @@
     if (app.opponentMode === "com") {
       return {
         label: app.hostTransferred ? "引継ぎ中" : "ひとりで",
-        title: "このルームで対局を進めます。",
+        title: isPlaying && !app.game.winner ? "COM と対局中です。" : "COM と練習します。",
         hint: app.hostTransferred && (app.matchConfigured || app.game.lastMove) && !app.game.winner ?
-          "このルームはあなたが引き継ぎました。相手が戻ると、今の盤面から再開するか選べます。" :
-          "ひとりで練習します。色を決めて START を押します。",
+          "このルームを引き継ぎました。相手が戻ると、今の盤面から再開するか選べます。" :
+          (isPlaying && !app.game.winner ?
+            "続ける時はこのまま、別の対局に移る時だけ下のメニューを使います。" :
+            "色を決めて START を押します。"),
         toolsSummary: "別のルームに参加 / 新しい対局",
         joinLabel: "別のルームに参加",
         newRoomLabel: "別の対局を作る",
@@ -259,10 +303,10 @@
     if (app.role === "host" && !joinedOpponent && !isPlaying && !app.game.winner) {
       return {
         label: app.hostTransferred ? "引継ぎ済み" : "招待中",
-        title: app.hostTransferred ? "このルームを引き継ぎました。" : "このルームで対局を進めます。",
+        title: app.hostTransferred ? "このルームを引き継ぎました。" : "友だちの参加を待っています。",
         hint: app.hostTransferred ?
           "友だちの参加を待つか、COM に切り替えて続けられます。" :
-          "友だちを招待して参加を待っています。",
+          "LINEで招待を送ると、このルームに参加できます。",
         toolsSummary: "別のルームに参加 / 新しい対局",
         joinLabel: "別のルームに参加",
         newRoomLabel: "別の対局を作る",
@@ -275,8 +319,10 @@
     if (app.role === "guest" && !isPlaying && !app.game.winner) {
       return {
         label: "参加中",
-        title: "このルームで対局を進めます。",
-        hint: "相手とつながると、色を決めて2人で START します。",
+        title: AppPeer.isConnected() ? "2人そろいました。" : "相手の接続を待っています。",
+        hint: AppPeer.isConnected() ?
+          "色を確認して、2人とも START を押します。" :
+          "つながると、色を確認して2人とも START を押します。",
         toolsSummary: "別のルームに参加 / 新しい対局",
         joinLabel: "別のルームに参加",
         newRoomLabel: "別の対局を作る",
@@ -288,9 +334,11 @@
 
     if (app.role === "host" && joinedOpponent && !isPlaying && !app.game.winner) {
       return {
-        label: "準備完了",
-        title: "このルームで対局を進めます。",
-        hint: "相手とつながると、色を決めて2人で START します。",
+        label: "START前",
+        title: AppPeer.isConnected() ? "2人そろいました。" : "相手の接続を待っています。",
+        hint: AppPeer.isConnected() ?
+          "色を確認して、2人とも START を押します。" :
+          "つながると、色を確認して2人とも START を押します。",
         toolsSummary: "別のルームに参加 / 新しい対局",
         joinLabel: "別のルームに参加",
         newRoomLabel: "別の対局を作る",
@@ -303,9 +351,11 @@
     return {
       label: app.game.winner ? "対局終了" : "対局中",
       title: app.game.winner ?
-        "このルームで対局を終えました。" :
-        "このルームで対局を進めています。",
-      hint: "別のルームへ移る時だけ、下のメニューを使います。",
+        "対局が終わりました。" :
+        "いま対局中です。",
+      hint: app.game.winner ?
+        "続ける時は盤面のボタンから再戦を選べます。" :
+        "手番と置ける場所は盤面に表示しています。",
       toolsSummary: "別のルームに参加 / 新しい対局",
       joinLabel: "別のルームに参加",
       newRoomLabel: "別の対局を作る",
