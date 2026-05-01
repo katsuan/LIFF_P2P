@@ -1,4 +1,6 @@
 (function (window, document) {
+  var identityPromise = null;
+
   function generateId(prefix) {
     return prefix + "-" + Math.random().toString(36).slice(2, 10);
   }
@@ -24,6 +26,17 @@
     return window.location.origin + normalizePathname(window.location.pathname);
   }
 
+  function getAssetUrl(filename) {
+    return getAppBaseUrl() + filename;
+  }
+
+  function buildLiffRoomUrl(roomId) {
+    if (!window.APP_CONFIG || !window.APP_CONFIG.liffId || window.APP_CONFIG.liffId === "YOUR_LIFF_ID" || !roomId) {
+      return "";
+    }
+    return "https://liff.line.me/" + window.APP_CONFIG.liffId + "?room=" + encodeURIComponent(roomId);
+  }
+
   function getStableDebugUserId() {
     var storageKey = "liff-p2p-debug-user-id";
     var existingId = "";
@@ -42,7 +55,11 @@
   }
 
   function initIdentity() {
-    return new Promise(function (resolve) {
+    if (identityPromise) {
+      return identityPromise;
+    }
+
+    identityPromise = new Promise(function (resolve, reject) {
       if (!window.liff || !window.APP_CONFIG.liffId || window.APP_CONFIG.liffId === "YOUR_LIFF_ID") {
         resolve({
           userId: getStableDebugUserId(),
@@ -52,9 +69,12 @@
         return;
       }
 
-      liff.init({ liffId: window.APP_CONFIG.liffId }).then(function () {
+      liff.init({
+        liffId: window.APP_CONFIG.liffId,
+        withLoginOnExternalBrowser: true
+      }).then(function () {
         if (!liff.isLoggedIn()) {
-          liff.login();
+          reject(new Error("LINE ログインを開始できませんでした。LIFF の設定を確認してください。"));
           return;
         }
 
@@ -78,6 +98,26 @@
           pictureUrl: ""
         });
       });
+    });
+
+    return identityPromise;
+  }
+
+  function loadVersionInfo() {
+    return fetch(getAssetUrl("version.json") + "?t=" + Date.now(), {
+      cache: "no-store"
+    }).then(function (response) {
+      if (!response.ok) {
+        throw new Error("version.json を取得できませんでした。");
+      }
+      return response.json();
+    }).then(function (payload) {
+      if (payload && payload.version) {
+        return payload.version;
+      }
+      throw new Error("version.json の形式が不正です。");
+    }).catch(function () {
+      return window.APP_CONFIG && window.APP_CONFIG.appVersion ? window.APP_CONFIG.appVersion : "";
     });
   }
 
@@ -108,7 +148,13 @@
     return Promise.resolve(true);
   }
 
-  function buildShareUrl(url) {
+  function buildShareUrl(roomId, url) {
+    var directLiffUrl = buildLiffRoomUrl(roomId);
+
+    if (directLiffUrl) {
+      return Promise.resolve(directLiffUrl);
+    }
+
     if (!url) {
       return Promise.resolve("");
     }
@@ -201,7 +247,7 @@
   }
 
   function shareRoom(roomId, url) {
-    return buildShareUrl(url).then(function (shareUrl) {
+    return buildShareUrl(roomId, url).then(function (shareUrl) {
       if (window.liff &&
           typeof liff.isApiAvailable === "function" &&
           liff.isApiAvailable("shareTargetPicker") &&
@@ -265,7 +311,10 @@
     generateId: generateId,
     sanitizeForPeer: sanitizeForPeer,
     getAppBaseUrl: getAppBaseUrl,
+    getAssetUrl: getAssetUrl,
+    buildLiffRoomUrl: buildLiffRoomUrl,
     initIdentity: initIdentity,
+    loadVersionInfo: loadVersionInfo,
     copyText: copyText,
     shareRoom: shareRoom,
     reload: reload

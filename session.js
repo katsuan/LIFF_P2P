@@ -121,11 +121,13 @@
       render();
     }
 
-    function updateRoomContext(roomId, joinRequested) {
+    function updateRoomContext(roomId, joinRequested, skipHistory) {
       app.roomId = roomId || "";
       app.joinRequested = !!joinRequested;
       app.roomUrl = roomId ? buildPageUrl(roomId, true) : "";
-      window.history.replaceState({}, "", buildPageUrl(roomId, joinRequested));
+      if (!skipHistory) {
+        window.history.replaceState({}, "", buildPageUrl(roomId, joinRequested));
+      }
       render();
     }
 
@@ -197,7 +199,11 @@
 
     function prepareRoomContext() {
       var params = new URLSearchParams(window.location.search);
-      updateRoomContext(params.get("room") || "", params.get("join") === "1");
+      updateRoomContext(params.get("room") || "", params.get("join") === "1", true);
+    }
+
+    function syncBrowserUrl() {
+      window.history.replaceState({}, "", buildPageUrl(app.roomId, app.joinRequested));
     }
 
     var play = window.OthelloPlay.create(app, {
@@ -452,10 +458,17 @@
         });
 
         render();
+        Platform.loadVersionInfo().then(function (version) {
+          if (version) {
+            app.appVersion = version;
+            render();
+          }
+        });
         Platform.initIdentity().then(function (identity) {
           app.userId = identity.userId;
           app.displayName = identity.displayName;
           app.pictureUrl = identity.pictureUrl;
+          syncBrowserUrl();
           render();
           Matchmaking.init();
           return bootstrapPeer();

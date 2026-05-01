@@ -17,4 +17,8 @@ cat > "$ROOT_DIR/version.js" <<EOF
 }(window));
 EOF
 
+cat > "$ROOT_DIR/version.json" <<EOF
+{"version":"$VERSION"}
+EOF
+
 printf 'version.js updated: %s\n' "$VERSION"
