@@ -26,8 +26,22 @@
     return window.location.origin + normalizePathname(window.location.pathname);
   }
 
+  function getStaticRootUrl() {
+    var script =
+      document.querySelector('script[src*="/js/platform.js"]') ||
+      document.querySelector('script[src$="js/platform.js"]') ||
+      document.querySelector('script[src*="/js/main.js"]') ||
+      document.querySelector('script[src$="js/main.js"]');
+
+    if (script && script.src) {
+      return String(new URL("../", script.src));
+    }
+
+    return getAppBaseUrl();
+  }
+
   function getAssetUrl(filename) {
-    return String(new URL(filename, window.location.href));
+    return String(new URL(filename, getStaticRootUrl()));
   }
 
   function isLocalPreviewEnvironment() {
