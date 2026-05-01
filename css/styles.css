@@ -160,6 +160,7 @@ h1 {
 .room-current-id {
   display: inline-flex;
   align-items: center;
+  min-width: 0;
   min-height: 42px;
   padding: 0 14px;
   border-radius: 999px;
@@ -168,6 +169,9 @@ h1 {
   font-size: 0.9rem;
   font-weight: 700;
   letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .room-tools {
@@ -289,6 +293,15 @@ button:disabled {
   .top-actions {
     min-width: 0;
     gap: 8px;
+    min-height: 0;
+  }
+
+  .room-state-title {
+    min-height: 2.7em;
+  }
+
+  .room-state-hint {
+    min-height: 3em;
   }
 
   .field-label {

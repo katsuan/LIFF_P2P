@@ -532,7 +532,11 @@
       if (getRemotePeerId() && !app.staleGuest) {
         play.connectToRemotePeer(getRemotePeerId());
       } else if (entry === "resume-guest") {
-        startGuestWaitTimer();
+        if (!roomData.hostPeerId && !app.hadLocalSession) {
+          play.beginReconnect("ホストが不在です。");
+        } else {
+          startGuestWaitTimer();
+        }
       }
       return Promise.resolve();
     }

@@ -244,7 +244,7 @@
         newRoomLabel: "別の対局を作る",
         showCurrentRoom: true,
         showShare: false,
-        actionNote: "このルームで待機中"
+        actionNote: ""
       };
     }
 
@@ -258,7 +258,7 @@
         newRoomLabel: "別の対局を作る",
         showCurrentRoom: true,
         showShare: false,
-        actionNote: "招待は完了しています"
+        actionNote: ""
       };
     }
 
@@ -273,7 +273,7 @@
       newRoomLabel: "別の対局を作る",
       showCurrentRoom: true,
       showShare: false,
-      actionNote: "このルームで進行中"
+      actionNote: ""
     };
   }
 
