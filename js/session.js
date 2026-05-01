@@ -22,6 +22,7 @@
       appVersion: window.APP_CONFIG && window.APP_CONFIG.appVersion ? window.APP_CONFIG.appVersion : "",
       displayName: "",
       pictureUrl: "",
+      debugResult: "",
       opponentDisplayName: "",
       opponentPictureUrl: "",
       peerId: "",
@@ -109,8 +110,15 @@
       app.rematch.incoming = false;
     }
 
+    function clearDebugResult() {
+      app.debugResult = "";
+      app.resultOverlayDismissed = false;
+      render();
+    }
+
     function resetGame() {
       app.game = Game.createFreshGame();
+      app.debugResult = "";
       app.resultOverlayDismissed = false;
       render();
     }
@@ -204,6 +212,13 @@
 
     function syncBrowserUrl() {
       window.history.replaceState({}, "", buildPageUrl(app.roomId, app.joinRequested));
+    }
+
+    function showDebugResult(result) {
+      app.debugResult = result;
+      app.resultOverlayDismissed = false;
+      render();
+      setMessage("結果アニメーションをテスト中です。");
     }
 
     var play = window.OthelloPlay.create(app, {
@@ -444,9 +459,28 @@
           onSelectHuman: selectHumanMode,
           onSelectCom: selectComMode,
           onSwapColors: toggleHostColor,
-          onResultPrimary: function () { if (app.rematch.incoming) { play.acceptRematch(); } else if (!app.rematch.outgoing) { play.requestRematch(); } },
+          onDebugWin: function () { showDebugResult("win"); },
+          onDebugLose: function () { showDebugResult("lose"); },
+          onDebugDraw: function () { showDebugResult("draw"); },
+          onDebugClear: function () {
+            clearDebugResult();
+            setMessage("結果アニメーションのテストを閉じました。");
+          },
+          onResultPrimary: function () {
+            if (app.debugResult) {
+              clearDebugResult();
+              setMessage("結果アニメーションのテストを閉じました。");
+            } else if (app.rematch.incoming) {
+              play.acceptRematch();
+            } else if (!app.rematch.outgoing) {
+              play.requestRematch();
+            }
+          },
           onResultSecondary: function () {
-            if (app.rematch.incoming) {
+            if (app.debugResult) {
+              clearDebugResult();
+              setMessage("結果アニメーションのテストを閉じました。");
+            } else if (app.rematch.incoming) {
               play.rejectRematch();
             } else {
               app.resultOverlayDismissed = true;

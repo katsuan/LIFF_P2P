@@ -105,6 +105,9 @@
   }
 
   function getResultCaption(app) {
+    if (app.debugResult) {
+      return "アニメーション確認中です。";
+    }
     if (app.rematch.incoming) {
       return "相手が再戦を希望しています。続けますか？";
     }
@@ -180,6 +183,10 @@
       modeStatus: documentRef.getElementById("modeStatus"),
       roomSummary: documentRef.getElementById("roomSummary"),
       peerSummary: documentRef.getElementById("peerSummary"),
+      debugWinButton: documentRef.getElementById("debugWinButton"),
+      debugLoseButton: documentRef.getElementById("debugLoseButton"),
+      debugDrawButton: documentRef.getElementById("debugDrawButton"),
+      debugClearButton: documentRef.getElementById("debugClearButton"),
       resultOverlay: documentRef.getElementById("resultOverlay"),
       resultWord: documentRef.getElementById("resultWord"),
       resultCaption: documentRef.getElementById("resultCaption"),
@@ -201,6 +208,10 @@
         elements.humanOpponentButton.addEventListener("click", handlers.onSelectHuman);
         elements.comOpponentButton.addEventListener("click", handlers.onSelectCom);
         elements.hostColorSwapButton.addEventListener("click", handlers.onSwapColors);
+        elements.debugWinButton.addEventListener("click", handlers.onDebugWin);
+        elements.debugLoseButton.addEventListener("click", handlers.onDebugLose);
+        elements.debugDrawButton.addEventListener("click", handlers.onDebugDraw);
+        elements.debugClearButton.addEventListener("click", handlers.onDebugClear);
         elements.resultPrimaryButton.addEventListener("click", handlers.onResultPrimary);
         elements.resultSecondaryButton.addEventListener("click", handlers.onResultSecondary);
         elements.roomInput.addEventListener("keydown", function (event) {
@@ -236,7 +247,8 @@
         var myCardColor = "";
         var opponentCardColor = "";
         var currentTurn = app.game.currentTurn;
-        var outcome = Game.outcomeForColor(app.game.winner, app.myColor || Game.BLACK);
+        var outcome = app.debugResult || Game.outcomeForColor(app.game.winner, app.myColor || Game.BLACK);
+        var isDebugResult = !!app.debugResult;
 
         if (app.myColor) {
           myCardColor = app.myColor;
@@ -300,18 +312,19 @@
           elements.startButton.disabled = app.role !== "host";
         }
 
-        setHidden(elements.resultOverlay, !app.game.winner || app.resultOverlayDismissed);
-        elements.resultOverlay.classList.toggle("visible", !!app.game.winner && !app.resultOverlayDismissed);
+        setHidden(elements.resultOverlay, !(isDebugResult || app.game.winner) || app.resultOverlayDismissed);
+        elements.resultOverlay.classList.toggle("visible", (isDebugResult || !!app.game.winner) && !app.resultOverlayDismissed);
         elements.resultOverlay.classList.toggle("result-win", outcome === "win");
         elements.resultOverlay.classList.toggle("result-draw", outcome === "draw");
         elements.resultOverlay.classList.toggle("result-lose", outcome === "lose");
         setText(elements.resultWord, outcome === "draw" ? "DRAW" : (outcome === "win" ? "WIN" : "LOSE"));
         setText(elements.resultCaption, getResultCaption(app));
-        setText(elements.resultScoreline, String(app.myColor === Game.BLACK ? counts.black : counts.white) + " - " +
+        setText(elements.resultScoreline, isDebugResult ? "Animation Preview" :
+          String(app.myColor === Game.BLACK ? counts.black : counts.white) + " - " +
           String(app.myColor === Game.BLACK ? counts.white : counts.black));
-        setText(elements.resultPrimaryButton, app.rematch.outgoing ? "送信中" : "はい");
-        setText(elements.resultSecondaryButton, app.rematch.outgoing ? "閉じる" : "いいえ");
-        elements.resultPrimaryButton.disabled = !!app.rematch.outgoing;
+        setText(elements.resultPrimaryButton, isDebugResult ? "閉じる" : (app.rematch.outgoing ? "送信中" : "はい"));
+        setText(elements.resultSecondaryButton, isDebugResult ? "戻る" : (app.rematch.outgoing ? "閉じる" : "いいえ"));
+        elements.resultPrimaryButton.disabled = !isDebugResult && !!app.rematch.outgoing;
 
         for (index = 0; index < buttons.length; index += 1) {
           button = buttons[index];
