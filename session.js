@@ -17,6 +17,7 @@
     return {
       ui: ui,
       userId: "",
+      appVersion: window.APP_CONFIG && window.APP_CONFIG.appVersion ? window.APP_CONFIG.appVersion : "",
       displayName: "",
       pictureUrl: "",
       opponentDisplayName: "",

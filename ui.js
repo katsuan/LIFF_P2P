@@ -121,6 +121,7 @@
     var elements = {
       board: documentRef.getElementById("board"),
       roomInput: documentRef.getElementById("roomInput"),
+      versionBadge: documentRef.getElementById("versionBadge"),
       copyRoomIdButton: documentRef.getElementById("copyRoomIdButton"),
       joinRoomButton: documentRef.getElementById("joinRoomButton"),
       shareButton: documentRef.getElementById("shareButton"),
@@ -219,6 +220,7 @@
         }
 
         this.setRoomInput(app.roomId);
+        setText(elements.versionBadge, app.appVersion || "dev");
         setText(elements.myLabel, getMyLabel(app));
         setText(elements.opponentLabel, getOpponentLabel(app));
         setText(elements.myName, app.displayName || "あなた");

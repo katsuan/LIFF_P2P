@@ -11,7 +11,10 @@
   <div class="app">
     <section class="panel topbar">
       <div class="title-group">
-        <h1>LIFF P2P オセロ</h1>
+        <div class="title-row">
+          <h1>LIFF P2P オセロ</h1>
+          <span id="versionBadge" class="version-badge" aria-label="コミットバージョン">----</span>
+        </div>
       </div>
       <div class="top-actions">
         <label class="field-label" for="roomInput">ルームID</label>
@@ -131,6 +134,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
   <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+  <script src="version.js"></script>
   <script src="firebase.js"></script>
   <script src="webrtc.js"></script>
   <script src="game.js"></script>
