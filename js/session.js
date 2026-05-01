@@ -414,7 +414,12 @@
             if (!roomId) {
               setMessage("参加したいルームIDを入力してください。");
             } else if (roomId === app.roomId) {
-              setMessage("現在このルームを開いています。");
+              if (AppPeer.isConnected() && !app.reconnecting) {
+                setMessage("現在このルームに接続中です。");
+              } else {
+                setMessage("同じルームへ再接続しています。");
+                Platform.reload(buildPageUrl(roomId, true), false);
+              }
             } else {
               window.location.href = buildPageUrl(roomId, true);
             }

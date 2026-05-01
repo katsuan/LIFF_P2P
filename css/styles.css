@@ -84,7 +84,7 @@ h1 {
 
 .top-actions {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   min-width: 260px;
 }
 
@@ -94,8 +94,27 @@ h1 {
   font-weight: 700;
 }
 
+.room-overview {
+  display: grid;
+  gap: 8px;
+}
+
+.room-state-title {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.room-state-hint {
+  color: var(--muted);
+  font-size: 0.87rem;
+  line-height: 1.5;
+}
+
+.room-current-row,
 .link-row,
-.button-row {
+.button-row,
+.room-tools-actions {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -103,7 +122,55 @@ h1 {
 }
 
 .button-row {
-  justify-content: flex-end;
+  justify-content: flex-start;
+}
+
+.room-current-id {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  padding: 0 14px;
+  border-radius: 999px;
+  background: rgba(29, 42, 34, 0.06);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.room-tools {
+  border: 1px solid rgba(29, 42, 34, 0.1);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.room-tools summary {
+  padding: 12px 14px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.room-tools summary::-webkit-details-marker {
+  display: none;
+}
+
+.room-tools summary::after {
+  content: "＋";
+  float: right;
+  color: rgba(29, 42, 34, 0.48);
+}
+
+.room-tools[open] summary::after {
+  content: "−";
+}
+
+.room-tools-body {
+  display: grid;
+  gap: 10px;
+  padding: 0 14px 14px;
 }
 
 .room-input {
@@ -147,6 +214,11 @@ button:disabled {
   color: #203024;
 }
 
+.button-compact {
+  padding: 10px 14px;
+  font-size: 0.82rem;
+}
+
 .button-ghost {
   background: #f1efe7;
   color: #203024;
@@ -170,14 +242,58 @@ button:disabled {
   .topbar {
     grid-template-columns: 1fr;
   }
-
-  .button-row {
-    justify-content: flex-start;
-  }
 }
 
 @media (max-width: 640px) {
   body {
     padding: 16px 10px 28px;
+  }
+
+  .title-row {
+    gap: 8px;
+    align-items: baseline;
+  }
+
+  .top-actions {
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .field-label {
+    margin-bottom: 2px;
+  }
+
+  .room-current-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .link-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .room-input {
+    min-width: 0;
+  }
+
+  .button-row,
+  .room-tools-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .link-row .button-secondary,
+  .button-row button,
+  .room-tools-actions button,
+  .room-current-row .button-secondary {
+    width: 100%;
+    min-width: 0;
+    justify-content: center;
   }
 }

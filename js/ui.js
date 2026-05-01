@@ -117,6 +117,95 @@
       remainingSeconds + "秒待ち、戻れなければ COM に切り替わります。";
   }
 
+  function hasJoinedOpponent(app) {
+    return app.opponentMode === "human" &&
+      !!app.roomData &&
+      !!app.roomData.guestUserId;
+  }
+
+  function getRoomFlow(app) {
+    var joinedOpponent = hasJoinedOpponent(app);
+    var isPlaying = app.matchConfigured || !!app.game.lastMove;
+
+    if (!app.roomId) {
+      return {
+        label: "はじめる",
+        title: "新しい対局を作るか、招待されたルームに参加します。",
+        hint: "友だちと遊ぶ時は、先に対局を作ってから招待します。",
+        toolsSummary: "招待されたルームに参加",
+        joinLabel: "参加する",
+        newRoomLabel: "新しい対局を作る",
+        showCurrentRoom: false,
+        showShare: false
+      };
+    }
+
+    if (app.opponentMode === "com") {
+      return {
+        label: "ひとりで",
+        title: "この端末で COM と練習します。",
+        hint: "招待は使いません。色を決めて START を押します。",
+        toolsSummary: "別のルームへ移動 / 新しい対局",
+        joinLabel: "このIDへ移動",
+        newRoomLabel: "別の対局を作る",
+        showCurrentRoom: true,
+        showShare: false
+      };
+    }
+
+    if (app.role === "host" && !joinedOpponent && !isPlaying && !app.game.winner) {
+      return {
+        label: "招待中",
+        title: "ルームを作成しました。友だちに招待を送ってください。",
+        hint: "相手が入室したら、このまま START 準備へ進みます。",
+        toolsSummary: "別のルームへ移動 / 新しい対局",
+        joinLabel: "このIDへ移動",
+        newRoomLabel: "別の対局を作る",
+        showCurrentRoom: true,
+        showShare: true
+      };
+    }
+
+    if (app.role === "guest" && !isPlaying && !app.game.winner) {
+      return {
+        label: "参加中",
+        title: "このルームに参加しました。ホストの開始を待っています。",
+        hint: "招待は不要です。このまま接続されるまで待ちます。",
+        toolsSummary: "このルームへ再接続 / 別のルームへ移動",
+        joinLabel: "再接続する",
+        newRoomLabel: "別の対局を作る",
+        showCurrentRoom: true,
+        showShare: false
+      };
+    }
+
+    if (app.role === "host" && joinedOpponent && !isPlaying && !app.game.winner) {
+      return {
+        label: "準備完了",
+        title: "相手が参加しました。色を確認して START で始めます。",
+        hint: "招待は完了しています。このルーム内でそのまま対局します。",
+        toolsSummary: "このルームへ再接続 / 別のルームへ移動",
+        joinLabel: "再接続する",
+        newRoomLabel: "別の対局を作る",
+        showCurrentRoom: true,
+        showShare: false
+      };
+    }
+
+    return {
+      label: app.game.winner ? "対局終了" : "対局中",
+      title: app.game.winner ?
+        "このルームの対局が終了しました。" :
+        "このルームで対局中です。",
+      hint: "別のルームへ移る時だけ、下のメニューを使います。",
+      toolsSummary: "このルームへ再接続 / 別のルームへ移動",
+      joinLabel: "再接続する",
+      newRoomLabel: "別の対局を作る",
+      showCurrentRoom: true,
+      showShare: false
+    };
+  }
+
   function getResultCaption(app) {
     if (app.rematch.incoming) {
       return "相手が再戦を希望しています。続けますか？";
@@ -159,6 +248,14 @@
       board: documentRef.getElementById("board"),
       roomInput: documentRef.getElementById("roomInput"),
       versionBadge: documentRef.getElementById("versionBadge"),
+      roomStateLabel: documentRef.getElementById("roomStateLabel"),
+      roomStateTitle: documentRef.getElementById("roomStateTitle"),
+      roomStateHint: documentRef.getElementById("roomStateHint"),
+      roomCurrentRow: documentRef.getElementById("roomCurrentRow"),
+      roomCurrentId: documentRef.getElementById("roomCurrentId"),
+      hostInviteActions: documentRef.getElementById("hostInviteActions"),
+      roomTools: documentRef.getElementById("roomTools"),
+      roomToolsSummary: documentRef.getElementById("roomToolsSummary"),
       copyRoomIdButton: documentRef.getElementById("copyRoomIdButton"),
       joinRoomButton: documentRef.getElementById("joinRoomButton"),
       shareButton: documentRef.getElementById("shareButton"),
@@ -251,6 +348,7 @@
         var opponentCardColor = "";
         var currentTurn = app.game.currentTurn;
         var outcome = Game.outcomeForColor(app.game.winner, app.myColor || Game.BLACK);
+        var roomFlow = getRoomFlow(app);
 
         if (app.myColor) {
           myCardColor = app.myColor;
@@ -262,6 +360,13 @@
 
         this.setRoomInput(app.roomId);
         setText(elements.versionBadge, app.appVersion || "dev");
+        setText(elements.roomStateLabel, roomFlow.label);
+        setText(elements.roomStateTitle, roomFlow.title);
+        setText(elements.roomStateHint, roomFlow.hint);
+        setText(elements.roomToolsSummary, roomFlow.toolsSummary);
+        setText(elements.joinRoomButton, roomFlow.joinLabel);
+        setText(elements.newRoomButton, roomFlow.newRoomLabel);
+        setText(elements.roomCurrentId, app.roomId ? ("ルームID: " + app.roomId) : "ルーム未作成");
         setText(elements.myLabel, getMyLabel(app));
         setText(elements.opponentLabel, getOpponentLabel(app));
         setText(elements.myName, app.displayName || "あなた");
@@ -277,6 +382,14 @@
         setText(elements.peerSummary, app.peerId ? ("ピアID " + app.peerId) : "シグナリングサーバーに接続中…");
         setAvatar(elements.myAvatar, app.displayName || "あなた", app.pictureUrl || "");
         setAvatar(elements.opponentAvatar, app.opponentDisplayName || "相手", app.opponentPictureUrl || "");
+        setHidden(elements.roomCurrentRow, !roomFlow.showCurrentRoom);
+        setHidden(elements.copyRoomIdButton, !app.roomId);
+        setHidden(elements.hostInviteActions, !roomFlow.showShare);
+        if (!app.roomId) {
+          elements.roomTools.open = true;
+        }
+        elements.newRoomButton.classList.toggle("button-primary", !app.roomId);
+        elements.newRoomButton.classList.toggle("button-secondary", !!app.roomId);
         setCardColorClass(elements.myCard, myCardColor);
         setCardColorClass(elements.opponentCard, opponentCardColor);
         elements.myCard.classList.toggle("active-turn", !!app.myColor && !!currentTurn && currentTurn === app.myColor);

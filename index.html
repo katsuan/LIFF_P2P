@@ -17,16 +17,31 @@
         </div>
       </div>
       <div class="top-actions">
-        <label class="field-label" for="roomInput">ルームID</label>
-        <div class="link-row">
-          <input id="roomInput" class="room-input" type="text" value="" placeholder="ルームIDを入力">
+        <div class="room-overview">
+          <div id="roomStateLabel" class="field-label">はじめる</div>
+          <div id="roomStateTitle" class="room-state-title">新しい対局を作るか、招待されたルームに参加します。</div>
+          <div id="roomStateHint" class="room-state-hint">友だちと遊ぶ時は、先に対局を作ってから招待します。</div>
+          <div id="roomCurrentRow" class="room-current-row hidden">
+            <div id="roomCurrentId" class="room-current-id">room-xxxxxx</div>
+            <button id="copyRoomIdButton" class="button-secondary button-compact" type="button">IDをコピー</button>
+          </div>
+          <div id="hostInviteActions" class="button-row hidden">
+            <button id="shareButton" class="button-primary" type="button">LINEで招待</button>
+          </div>
         </div>
-        <div class="button-row">
-          <button id="copyRoomIdButton" class="button-secondary" type="button">IDをコピー</button>
-          <button id="joinRoomButton" class="button-secondary" type="button">ルームへ移動</button>
-          <button id="shareButton" class="button-primary" type="button">LINEで招待</button>
-          <button id="newRoomButton" class="button-secondary" type="button">新しいルーム</button>
-        </div>
+        <details id="roomTools" class="room-tools">
+          <summary id="roomToolsSummary">招待されたルームに参加</summary>
+          <div class="room-tools-body">
+            <label class="field-label" for="roomInput">ルームID</label>
+            <div class="link-row">
+              <input id="roomInput" class="room-input" type="text" value="" placeholder="ルームIDを入力">
+              <button id="joinRoomButton" class="button-secondary" type="button">参加する</button>
+            </div>
+            <div class="room-tools-actions">
+              <button id="newRoomButton" class="button-secondary" type="button">新しい対局を作る</button>
+            </div>
+          </div>
+        </details>
       </div>
     </section>
 
