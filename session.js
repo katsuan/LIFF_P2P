@@ -388,6 +388,10 @@
       render();
     }
 
+    function toggleHostColor() {
+      handleHostColorChange(app.desiredHostColor === Game.BLACK ? Game.WHITE : Game.BLACK);
+    }
+
     function bootstrapPeer() {
       return AppPeer.init(buildPeerId(), {
         onPeerOpen: function (peerId) { app.peerId = peerId; render(); },
@@ -443,8 +447,7 @@
           onHardReload: function () { AppPeer.disconnect(); Platform.reload(buildPageUrl(app.roomId, app.joinRequested), true); },
           onSelectHuman: selectHumanMode,
           onSelectCom: selectComMode,
-          onSelectBlack: function () { handleHostColorChange(Game.BLACK); },
-          onSelectWhite: function () { handleHostColorChange(Game.WHITE); },
+          onSwapColors: toggleHostColor,
           onResultPrimary: function () { if (app.rematch.incoming) { play.acceptRematch(); } else if (!app.rematch.outgoing) { play.requestRematch(); } },
           onResultSecondary: function () {
             if (app.rematch.incoming) {

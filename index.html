@@ -57,6 +57,27 @@
           </div>
         </div>
 
+        <div id="hostSetupPanel" class="host-setup-panel hidden">
+          <div class="host-setup-grid">
+            <div class="host-setup-slot host-setup-slot-center">
+              <div class="host-setup-label">先手と色</div>
+              <button id="hostColorSwapButton" class="swap-color-button is-black-start" type="button" aria-label="先手と色を切り替える" title="先手と色を切り替える">
+                <span class="swap-disc swap-disc-black"></span>
+                <span class="swap-arrow">↻</span>
+                <span class="swap-disc swap-disc-white"></span>
+              </button>
+            </div>
+            <div class="host-setup-slot host-setup-slot-opponent">
+              <div class="host-setup-label">対戦相手</div>
+              <div class="control-actions">
+                <button id="humanOpponentButton" class="button-chip active" type="button">友だちと</button>
+                <button id="comOpponentButton" class="button-chip" type="button">ひとりで</button>
+              </div>
+            </div>
+          </div>
+          <div id="controlHint" class="small host-setup-hint">接続後にこの設定を相手へ同期します。</div>
+        </div>
+
         <div id="reconnectNotice" class="status-banner hidden">
           <div id="reconnectText">接続状態を確認しています。</div>
           <div class="status-actions">
@@ -82,19 +103,6 @@
       </div>
 
       <aside class="panel sidebar">
-        <div id="hostSetupPanel" class="control-panel hidden">
-          <div class="control-title">開始前設定</div>
-          <div class="control-actions">
-            <button id="humanOpponentButton" class="button-chip active" type="button">LINE対戦</button>
-            <button id="comOpponentButton" class="button-chip" type="button">COM対戦</button>
-          </div>
-          <div class="control-actions">
-            <button id="hostBlackButton" class="button-chip active" type="button">ホストが黒</button>
-            <button id="hostWhiteButton" class="button-chip" type="button">ホストが白</button>
-          </div>
-          <div id="controlHint" class="small">接続後にこの設定を相手へ同期します。</div>
-        </div>
-
         <div id="messageBox" class="message-box">LIFF、Firebase、PeerJS の初期化を待っています。</div>
 
         <details class="debug-panel">

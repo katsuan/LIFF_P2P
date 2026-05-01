@@ -145,8 +145,7 @@
       hostSetupPanel: documentRef.getElementById("hostSetupPanel"),
       humanOpponentButton: documentRef.getElementById("humanOpponentButton"),
       comOpponentButton: documentRef.getElementById("comOpponentButton"),
-      hostBlackButton: documentRef.getElementById("hostBlackButton"),
-      hostWhiteButton: documentRef.getElementById("hostWhiteButton"),
+      hostColorSwapButton: documentRef.getElementById("hostColorSwapButton"),
       controlHint: documentRef.getElementById("controlHint"),
       messageBox: documentRef.getElementById("messageBox"),
       transportStatus: documentRef.getElementById("transportStatus"),
@@ -172,8 +171,7 @@
         elements.reloadButton.addEventListener("click", handlers.onHardReload);
         elements.humanOpponentButton.addEventListener("click", handlers.onSelectHuman);
         elements.comOpponentButton.addEventListener("click", handlers.onSelectCom);
-        elements.hostBlackButton.addEventListener("click", handlers.onSelectBlack);
-        elements.hostWhiteButton.addEventListener("click", handlers.onSelectWhite);
+        elements.hostColorSwapButton.addEventListener("click", handlers.onSwapColors);
         elements.resultPrimaryButton.addEventListener("click", handlers.onResultPrimary);
         elements.resultSecondaryButton.addEventListener("click", handlers.onResultSecondary);
         elements.roomInput.addEventListener("keydown", function (event) {
@@ -251,8 +249,14 @@
           (!app.matchConfigured || (!app.game.lastMove && !app.game.winner))));
         elements.humanOpponentButton.classList.toggle("active", app.opponentMode === "human");
         elements.comOpponentButton.classList.toggle("active", app.opponentMode === "com");
-        elements.hostBlackButton.classList.toggle("active", app.desiredHostColor === Game.BLACK);
-        elements.hostWhiteButton.classList.toggle("active", app.desiredHostColor === Game.WHITE);
+        elements.hostColorSwapButton.classList.toggle("is-black-start", app.desiredHostColor === Game.BLACK);
+        elements.hostColorSwapButton.classList.toggle("is-white-start", app.desiredHostColor === Game.WHITE);
+        elements.hostColorSwapButton.setAttribute("aria-label", app.desiredHostColor === Game.BLACK ?
+          "黒が先手です。押すと白先手へ切り替えます。" :
+          "白が先手です。押すと黒先手へ切り替えます。");
+        elements.hostColorSwapButton.setAttribute("title", app.desiredHostColor === Game.BLACK ?
+          "黒が先手です。押すと白先手へ切り替えます。" :
+          "白が先手です。押すと黒先手へ切り替えます。");
         setText(elements.controlHint, app.opponentMode === "com" ?
           "COM はこの端末だけで対戦します。Firestore も P2P も使いません。" :
           (app.matchConfigured ? "初手前なら色設定を変更できます。" : "接続後にこの設定を相手へ同期します。"));

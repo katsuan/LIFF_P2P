@@ -25,6 +25,88 @@
   gap: 12px;
 }
 
+.host-setup-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.host-setup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.host-setup-slot {
+  display: grid;
+  gap: 6px;
+}
+
+.host-setup-slot-center {
+  grid-column: 1 / span 2;
+  justify-items: center;
+}
+
+.host-setup-slot-opponent {
+  grid-column: 2;
+  justify-items: start;
+}
+
+.host-setup-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.host-setup-hint {
+  text-align: right;
+}
+
+.swap-color-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: #edf0ea;
+  color: #223127;
+}
+
+.swap-disc {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  transition: transform 140ms ease, opacity 140ms ease, box-shadow 140ms ease;
+}
+
+.swap-disc-black {
+  background: linear-gradient(180deg, #3a403c 0%, #020303 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.swap-disc-white {
+  background: linear-gradient(180deg, #ffffff 0%, #f2eee3 100%);
+  border: 1px solid rgba(18, 24, 21, 0.42);
+}
+
+.swap-arrow {
+  font-size: 0.92rem;
+  line-height: 1;
+  color: #6c776f;
+  transition: transform 140ms ease;
+}
+
+.swap-color-button.is-black-start .swap-disc-black,
+.swap-color-button.is-white-start .swap-disc-white {
+  transform: scale(1.25);
+  box-shadow: 0 0 0 3px rgba(214, 109, 47, 0.16);
+}
+
+.swap-color-button.is-white-start .swap-arrow {
+  transform: rotate(180deg);
+}
+
 .status-banner {
   display: grid;
   gap: 10px;
@@ -44,6 +126,10 @@
   gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+}
+
+.host-setup-slot-center .control-actions {
+  justify-content: center;
 }
 
 .board-stage {
@@ -369,6 +455,26 @@
 
   .board-head {
     gap: 8px;
+  }
+
+  .host-setup-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .host-setup-slot-center,
+  .host-setup-slot-opponent {
+    grid-column: auto;
+    justify-items: stretch;
+  }
+
+  .host-setup-slot .control-actions,
+  .host-setup-slot-center .control-actions {
+    justify-content: flex-start;
+  }
+
+  .host-setup-hint {
+    text-align: left;
   }
 
   .player-card {
