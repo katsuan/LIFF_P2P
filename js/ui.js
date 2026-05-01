@@ -160,73 +160,79 @@
         joinLabel: "参加する",
         newRoomLabel: "新しい対局を作る",
         showCurrentRoom: false,
-        showShare: false
+        showShare: false,
+        actionNote: ""
       };
     }
 
     if (app.opponentMode === "com") {
       return {
         label: "ひとりで",
-        title: "この端末で COM と練習します。",
-        hint: "招待は使いません。色を決めて START を押します。",
+        title: "このルームで対局を進めます。",
+        hint: "ひとりで練習します。色を決めて START を押します。",
         toolsSummary: "別のルームへ移動 / 新しい対局",
         joinLabel: "このIDへ移動",
         newRoomLabel: "別の対局を作る",
         showCurrentRoom: true,
-        showShare: false
+        showShare: false,
+        actionNote: "招待は使いません"
       };
     }
 
     if (app.role === "host" && !joinedOpponent && !isPlaying && !app.game.winner) {
       return {
         label: "招待中",
-        title: "ルームを作成しました。友だちに招待を送ってください。",
-        hint: "相手が入室したら、このまま START 準備へ進みます。",
+        title: "このルームで対局を進めます。",
+        hint: "友だちを招待して参加を待っています。",
         toolsSummary: "別のルームへ移動 / 新しい対局",
         joinLabel: "このIDへ移動",
         newRoomLabel: "別の対局を作る",
         showCurrentRoom: true,
-        showShare: true
+        showShare: true,
+        actionNote: ""
       };
     }
 
     if (app.role === "guest" && !isPlaying && !app.game.winner) {
       return {
         label: "参加中",
-        title: "このルームに参加しました。ホストの開始を待っています。",
-        hint: "招待は不要です。このまま接続されるまで待ちます。",
+        title: "このルームで対局を進めます。",
+        hint: "ホストの開始を待っています。招待は不要です。",
         toolsSummary: "このルームへ再接続 / 別のルームへ移動",
         joinLabel: "再接続する",
         newRoomLabel: "別の対局を作る",
         showCurrentRoom: true,
-        showShare: false
+        showShare: false,
+        actionNote: "このルームで待機中"
       };
     }
 
     if (app.role === "host" && joinedOpponent && !isPlaying && !app.game.winner) {
       return {
         label: "準備完了",
-        title: "相手が参加しました。色を確認して START で始めます。",
-        hint: "招待は完了しています。このルーム内でそのまま対局します。",
+        title: "このルームで対局を進めます。",
+        hint: "相手が参加しました。色を確認して START で始めます。",
         toolsSummary: "このルームへ再接続 / 別のルームへ移動",
         joinLabel: "再接続する",
         newRoomLabel: "別の対局を作る",
         showCurrentRoom: true,
-        showShare: false
+        showShare: false,
+        actionNote: "招待は完了しています"
       };
     }
 
     return {
       label: app.game.winner ? "対局終了" : "対局中",
       title: app.game.winner ?
-        "このルームの対局が終了しました。" :
-        "このルームで対局中です。",
+        "このルームで対局を終えました。" :
+        "このルームで対局を進めています。",
       hint: "別のルームへ移る時だけ、下のメニューを使います。",
       toolsSummary: "このルームへ再接続 / 別のルームへ移動",
       joinLabel: "再接続する",
       newRoomLabel: "別の対局を作る",
       showCurrentRoom: true,
-      showShare: false
+      showShare: false,
+      actionNote: "このルームで進行中"
     };
   }
 
@@ -278,6 +284,8 @@
       roomCurrentRow: documentRef.getElementById("roomCurrentRow"),
       roomCurrentId: documentRef.getElementById("roomCurrentId"),
       hostInviteActions: documentRef.getElementById("hostInviteActions"),
+      roomActionRow: documentRef.getElementById("roomActionRow"),
+      roomActionNote: documentRef.getElementById("roomActionNote"),
       roomTools: documentRef.getElementById("roomTools"),
       roomToolsSummary: documentRef.getElementById("roomToolsSummary"),
       copyRoomIdButton: documentRef.getElementById("copyRoomIdButton"),
@@ -413,7 +421,12 @@
         setAvatar(elements.opponentAvatar, app.opponentDisplayName || "相手", app.opponentPictureUrl || "");
         setHidden(elements.roomCurrentRow, !roomFlow.showCurrentRoom);
         setHidden(elements.copyRoomIdButton, !app.roomId);
-        setHidden(elements.hostInviteActions, !roomFlow.showShare);
+        setHidden(elements.roomActionRow, !app.roomId);
+        setHidden(elements.shareButton, !roomFlow.showShare);
+        setHidden(elements.roomActionNote, roomFlow.showShare || !roomFlow.actionNote);
+        if (!roomFlow.showShare && roomFlow.actionNote) {
+          setText(elements.roomActionNote, roomFlow.actionNote);
+        }
         if (!app.roomId) {
           elements.roomTools.open = true;
         }
