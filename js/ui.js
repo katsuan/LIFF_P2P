@@ -65,12 +65,6 @@
     if (app.myColor) {
       return label + " (" + Game.colorName(app.myColor) + ")";
     }
-    if (app.role === "host") {
-      return label + " (" + Game.colorName(app.desiredHostColor) + "予定)";
-    }
-    if (app.role === "guest" && app.opponentMode === "human" && !app.matchConfigured) {
-      return label + " (" + Game.colorName(Game.getOpponent(app.desiredHostColor)) + "予定)";
-    }
     return label;
   }
 
@@ -78,12 +72,6 @@
     var label = app.opponentMode === "com" ? "COM" : (isCompactMobile() ? "相手" : "対戦相手");
     if (app.myColor) {
       return label + " (" + Game.colorName(Game.getOpponent(app.myColor)) + ")";
-    }
-    if (app.role === "host") {
-      return label + " (" + Game.colorName(Game.getOpponent(app.desiredHostColor)) + "予定)";
-    }
-    if (app.role === "guest" && app.opponentMode === "human" && !app.matchConfigured) {
-      return label + " (" + Game.colorName(app.desiredHostColor) + "予定)";
     }
     return label;
   }
