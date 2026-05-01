@@ -2,7 +2,13 @@
 set -eu
 
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-VERSION=$(git -C "$ROOT_DIR" rev-parse --short HEAD)
+VERSION=${GITHUB_SHA:-}
+
+if [ -n "$VERSION" ]; then
+  VERSION=$(printf '%s' "$VERSION" | cut -c1-7)
+else
+  VERSION=$(git -C "$ROOT_DIR" rev-parse --short HEAD)
+fi
 
 cat > "$ROOT_DIR/version.js" <<EOF
 (function (window) {
