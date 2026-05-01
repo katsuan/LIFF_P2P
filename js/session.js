@@ -354,7 +354,7 @@
       setTransport("ゲスト待機中");
       setMode("マッチング");
       setOpponentStatus("ゲスト待機中");
-      setMessage("URL を共有してゲストの参加を待ってください。");
+      setMessage("URL を共有してゲストの参加を待ってください。対局開始は接続後に START を押します。");
       subscribeToRoom();
     }
 
@@ -365,26 +365,21 @@
       }
       app.opponentMode = "com";
       app.transportMode = "com";
+      app.currentHostColor = "";
+      app.matchConfigured = false;
+      app.myColor = "";
       stopRoomSubscription();
       clearRematch();
+      resetGame();
       setOpponentProfile("COM", "");
       setTransport("ローカル");
-      setMode("COM 対戦");
-      setOpponentStatus("ローカル対戦");
-      play.applyMatchSettings(app.desiredHostColor, false);
-      setMessage("COM 対戦を開始しました。黒が先手です。");
+      setMode("COM 準備");
+      setOpponentStatus("START 待ち");
+      setMessage("COM と練習できます。色を決めて START を押してください。");
     }
 
     function handleHostColorChange(color) {
       app.desiredHostColor = color;
-      if (app.opponentMode === "com") {
-        play.applyMatchSettings(color, false);
-        return;
-      }
-      if (AppPeer.isConnected() && app.transportMode === "p2p" && !app.game.lastMove && !app.game.winner) {
-        play.applyMatchSettings(color, false);
-        AppPeer.send({ type: "settings", hostColor: color });
-      }
       render();
     }
 
@@ -445,6 +440,7 @@
           onNewRoom: function () { window.location.href = buildPageUrl(Platform.generateId("room"), false); },
           onRetryReconnect: play.retryReconnectNow,
           onHardReload: function () { AppPeer.disconnect(); Platform.reload(buildPageUrl(app.roomId, app.joinRequested), true); },
+          onStartGame: play.startMatch,
           onSelectHuman: selectHumanMode,
           onSelectCom: selectComMode,
           onSwapColors: toggleHostColor,

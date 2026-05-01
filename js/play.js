@@ -56,6 +56,30 @@
       maybeScheduleComTurn();
     }
 
+    function startMatch() {
+      if (app.matchConfigured) {
+        return;
+      }
+
+      if (app.opponentMode === "com") {
+        applyMatchSettings(app.desiredHostColor, false);
+        return;
+      }
+
+      if (!AppPeer.isConnected()) {
+        deps.setMessage("相手との接続が完了してから START できます。");
+        return;
+      }
+
+      applyMatchSettings(app.desiredHostColor, false);
+      try {
+        AppPeer.send({ type: "start", hostColor: app.desiredHostColor });
+        sendProfile();
+      } catch (error) {
+        beginReconnect("開始メッセージの送信に失敗しました。 " + error.message);
+      }
+    }
+
     function sendStateSnapshot() {
       if (!AppPeer.isConnected() || app.opponentMode === "com") {
         return;
@@ -177,9 +201,8 @@
           sendProfile();
           deps.setMessage("P2P 接続が再開されました。対局を同期しています。");
         } else {
-          applyMatchSettings(app.desiredHostColor, false);
-          AppPeer.send({ type: "settings", hostColor: app.desiredHostColor });
           sendProfile();
+          deps.setMessage("P2P 接続が確立されました。START で対局を始めます。");
         }
         return;
       }
@@ -296,7 +319,7 @@
       }
       if (data.type === "move") {
         makeMove(Number(data.row), Number(data.col), data.color, "remote", Number(data.version));
-      } else if (data.type === "settings") {
+      } else if (data.type === "start") {
         applyMatchSettings(data.hostColor, false);
       } else if (data.type === "profile") {
         deps.setOpponentProfile(data.displayName || "対戦相手", data.pictureUrl || "");
@@ -345,6 +368,7 @@
       acceptRematch: acceptRematch,
       rejectRematch: rejectRematch,
       retryReconnectNow: retryReconnectNow,
+      startMatch: startMatch,
       sendMove: sendMove,
       startP2PPlay: startP2PPlay,
       switchToCom: switchToCom

@@ -10,7 +10,9 @@ else
   VERSION=$(git -C "$ROOT_DIR" rev-parse --short HEAD)
 fi
 
-cat > "$ROOT_DIR/version.js" <<EOF
+mkdir -p "$ROOT_DIR/js"
+
+cat > "$ROOT_DIR/js/version.js" <<EOF
 (function (window) {
   window.APP_CONFIG = window.APP_CONFIG || {};
   window.APP_CONFIG.appVersion = "$VERSION";
@@ -21,4 +23,4 @@ cat > "$ROOT_DIR/version.json" <<EOF
 {"version":"$VERSION"}
 EOF
 
-printf 'version.js updated: %s\n' "$VERSION"
+printf 'js/version.js and version.json updated: %s\n' "$VERSION"

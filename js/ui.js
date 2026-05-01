@@ -117,6 +117,30 @@
     return "このルームで続けてもう一戦しますか？";
   }
 
+  function shouldShowStartOverlay(app) {
+    if (app.game.winner || app.matchConfigured || app.reconnecting) {
+      return false;
+    }
+    if (app.opponentMode === "com") {
+      return app.role === "host";
+    }
+    return app.transportMode === "p2p" && (app.role === "host" || app.role === "guest");
+  }
+
+  function getStartCaption(app) {
+    if (app.opponentMode === "com") {
+      return app.desiredHostColor === Game.BLACK ?
+        "あなたが黒で始めます。STARTで練習を始めます。" :
+        "COMが黒で始めます。STARTで練習を始めます。";
+    }
+    if (app.role === "host") {
+      return app.desiredHostColor === Game.BLACK ?
+        "あなたが黒です。STARTで対局を始めます。" :
+        "相手が黒です。STARTで対局を始めます。";
+    }
+    return "ホストが START を押すと対局が始まります。";
+  }
+
   function create(documentRef) {
     var elements = {
       board: documentRef.getElementById("board"),
@@ -142,6 +166,10 @@
       reconnectText: documentRef.getElementById("reconnectText"),
       retryReconnectButton: documentRef.getElementById("retryReconnectButton"),
       reloadButton: documentRef.getElementById("reloadButton"),
+      startOverlay: documentRef.getElementById("startOverlay"),
+      startWord: documentRef.getElementById("startWord"),
+      startCaption: documentRef.getElementById("startCaption"),
+      startButton: documentRef.getElementById("startButton"),
       hostSetupPanel: documentRef.getElementById("hostSetupPanel"),
       humanOpponentButton: documentRef.getElementById("humanOpponentButton"),
       comOpponentButton: documentRef.getElementById("comOpponentButton"),
@@ -169,6 +197,7 @@
         elements.newRoomButton.addEventListener("click", handlers.onNewRoom);
         elements.retryReconnectButton.addEventListener("click", handlers.onRetryReconnect);
         elements.reloadButton.addEventListener("click", handlers.onHardReload);
+        elements.startButton.addEventListener("click", handlers.onStartGame);
         elements.humanOpponentButton.addEventListener("click", handlers.onSelectHuman);
         elements.comOpponentButton.addEventListener("click", handlers.onSelectCom);
         elements.hostColorSwapButton.addEventListener("click", handlers.onSwapColors);
@@ -246,20 +275,30 @@
 
         setHidden(elements.hostSetupPanel, !(app.role === "host" &&
           app.transportMode !== "reconnecting" &&
-          (!app.matchConfigured || (!app.game.lastMove && !app.game.winner))));
+          !app.matchConfigured &&
+          !app.game.lastMove &&
+          !app.game.winner));
         elements.humanOpponentButton.classList.toggle("active", app.opponentMode === "human");
         elements.comOpponentButton.classList.toggle("active", app.opponentMode === "com");
         elements.hostColorSwapButton.classList.toggle("is-black-start", app.desiredHostColor === Game.BLACK);
         elements.hostColorSwapButton.classList.toggle("is-white-start", app.desiredHostColor === Game.WHITE);
         elements.hostColorSwapButton.setAttribute("aria-label", app.desiredHostColor === Game.BLACK ?
-          "黒が先手です。押すと白先手へ切り替えます。" :
-          "白が先手です。押すと黒先手へ切り替えます。");
+          "あなたが黒です。押すと白へ切り替えます。" :
+          "あなたが白です。押すと黒へ切り替えます。");
         elements.hostColorSwapButton.setAttribute("title", app.desiredHostColor === Game.BLACK ?
-          "黒が先手です。押すと白先手へ切り替えます。" :
-          "白が先手です。押すと黒先手へ切り替えます。");
+          "あなたが黒です。押すと白へ切り替えます。" :
+          "あなたが白です。押すと黒へ切り替えます。");
         setText(elements.controlHint, app.opponentMode === "com" ?
-          "COM はこの端末だけで対戦します。Firestore も P2P も使いません。" :
-          (app.matchConfigured ? "初手前なら色設定を変更できます。" : "接続後にこの設定を相手へ同期します。"));
+          "黒が先手です。COM はこの端末だけで動きます。" :
+          "黒が先手です。相手とつながったら START で開始します。");
+
+        setHidden(elements.startOverlay, !shouldShowStartOverlay(app));
+        if (shouldShowStartOverlay(app)) {
+          setText(elements.startWord, "START");
+          setText(elements.startCaption, getStartCaption(app));
+          setText(elements.startButton, app.role === "host" ? "START" : "待機中");
+          elements.startButton.disabled = app.role !== "host";
+        }
 
         setHidden(elements.resultOverlay, !app.game.winner || app.resultOverlayDismissed);
         elements.resultOverlay.classList.toggle("visible", !!app.game.winner && !app.resultOverlayDismissed);
