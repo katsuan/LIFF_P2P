@@ -121,6 +121,7 @@
     var elements = {
       board: documentRef.getElementById("board"),
       roomInput: documentRef.getElementById("roomInput"),
+      copyRoomIdButton: documentRef.getElementById("copyRoomIdButton"),
       joinRoomButton: documentRef.getElementById("joinRoomButton"),
       shareButton: documentRef.getElementById("shareButton"),
       newRoomButton: documentRef.getElementById("newRoomButton"),
@@ -162,6 +163,7 @@
     return {
       bind: function (handlers) {
         createBoardElements(elements.board, handlers.onBoardClick);
+        elements.copyRoomIdButton.addEventListener("click", handlers.onCopyRoomId);
         elements.joinRoomButton.addEventListener("click", handlers.onJoinRoom);
         elements.shareButton.addEventListener("click", handlers.onShareRoom);
         elements.newRoomButton.addEventListener("click", handlers.onNewRoom);

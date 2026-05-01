@@ -12,7 +12,6 @@
     <section class="panel topbar">
       <div class="title-group">
         <h1>LIFF P2P オセロ</h1>
-        <p class="subtitle">Firestore はマッチング専用。対局データは P2P だけで同期します。</p>
       </div>
       <div class="top-actions">
         <label class="field-label" for="roomInput">ルームID</label>
@@ -20,6 +19,7 @@
           <input id="roomInput" class="room-input" type="text" value="" placeholder="ルームIDを入力">
         </div>
         <div class="button-row">
+          <button id="copyRoomIdButton" class="button-secondary" type="button">IDをコピー</button>
           <button id="joinRoomButton" class="button-secondary" type="button">ルームへ移動</button>
           <button id="shareButton" class="button-primary" type="button">LINEで招待</button>
           <button id="newRoomButton" class="button-secondary" type="button">新しいルーム</button>
@@ -93,7 +93,14 @@
         </div>
 
         <div id="messageBox" class="message-box">LIFF、Firebase、PeerJS の初期化を待っています。</div>
-        <div class="small">有効な手だけが押せるため、両端末で同じ盤面状態を保てます。</div>
+
+        <details class="debug-panel">
+          <summary>このゲームについて</summary>
+          <div class="debug-grid">
+            <div class="small">Firestore はマッチング専用です。対局データは P2P だけで同期します。</div>
+            <div class="small">有効な手だけが押せるため、両端末で同じ盤面状態を保てます。</div>
+          </div>
+        </details>
 
         <details class="debug-panel">
           <summary>接続情報を確認</summary>

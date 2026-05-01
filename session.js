@@ -386,7 +386,20 @@
               window.location.href = buildPageUrl(roomId, true);
             }
           },
-          onShareRoom: function () { Platform.shareRoom(app.roomUrl).then(function (result) { setMessage(result.message); }); },
+          onCopyRoomId: function () {
+            if (!app.roomId) {
+              setMessage("コピーできるルームIDがまだありません。");
+              return;
+            }
+            Platform.copyText(app.roomId).then(function (copied) {
+              setMessage(copied ? "ルームIDをコピーしました。" : "ルームIDのコピーに失敗しました。");
+            });
+          },
+          onShareRoom: function () {
+            Platform.shareRoom(app.roomId, app.roomUrl).then(function (result) {
+              setMessage(result.message);
+            });
+          },
           onNewRoom: function () { window.location.href = window.location.pathname; },
           onRetryReconnect: play.retryReconnectNow,
           onHardReload: function () { AppPeer.disconnect(); Platform.reload(buildPageUrl(app.roomId, app.joinRequested), true); },

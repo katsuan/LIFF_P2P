@@ -109,14 +109,88 @@
     }
   }
 
-  function shareRoom(url) {
+  function buildFlexInviteMessage(roomId, shareUrl) {
+    return {
+      type: "flex",
+      altText: "オセロの招待が届いています。ルームID: " + roomId,
+      contents: {
+        type: "bubble",
+        size: "kilo",
+        body: {
+          type: "box",
+          layout: "vertical",
+          spacing: "md",
+          contents: [
+            {
+              type: "text",
+              text: "オセロで対戦しよう",
+              weight: "bold",
+              size: "xl",
+              color: "#183B2B"
+            },
+            {
+              type: "text",
+              text: "このメッセージからルームに参加できます。",
+              wrap: true,
+              size: "sm",
+              color: "#5B6E63"
+            },
+            {
+              type: "box",
+              layout: "vertical",
+              margin: "md",
+              paddingAll: "14px",
+              backgroundColor: "#F5F1E8",
+              cornerRadius: "16px",
+              contents: [
+                {
+                  type: "text",
+                  text: "ルームID",
+                  size: "xs",
+                  color: "#7A877F"
+                },
+                {
+                  type: "text",
+                  text: roomId,
+                  margin: "sm",
+                  weight: "bold",
+                  size: "lg",
+                  color: "#183B2B",
+                  wrap: true
+                }
+              ]
+            }
+          ]
+        },
+        footer: {
+          type: "box",
+          layout: "vertical",
+          contents: [
+            {
+              type: "button",
+              style: "primary",
+              height: "sm",
+              color: "#E3722C",
+              action: {
+                type: "uri",
+                label: "このルームに参加",
+                uri: shareUrl
+              }
+            }
+          ]
+        }
+      }
+    };
+  }
+
+  function shareRoom(roomId, url) {
     return buildShareUrl(url).then(function (shareUrl) {
       if (window.liff &&
           typeof liff.isApiAvailable === "function" &&
           liff.isApiAvailable("shareTargetPicker") &&
           typeof liff.shareTargetPicker === "function") {
         return liff.shareTargetPicker([
-          { type: "text", text: "オセロで対戦しよう\n" + shareUrl }
+          buildFlexInviteMessage(roomId, shareUrl)
         ]).then(function (result) {
           if (result) {
             return { status: "shared", message: "LINE で招待メッセージを送信しました。" };
@@ -174,6 +248,7 @@
     generateId: generateId,
     sanitizeForPeer: sanitizeForPeer,
     initIdentity: initIdentity,
+    copyText: copyText,
     shareRoom: shareRoom,
     reload: reload
   };
