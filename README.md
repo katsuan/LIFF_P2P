@@ -6,10 +6,8 @@ LIFF、Firebase Firestore、PeerJS を使った 2 人対戦オセロです。
 
 - `index.html`
   - 静的エントリポイント
-- `styles.css`
-  - 全体レイアウト
-- `board.css`
-  - 盤面、プレイヤーカード、結果オーバーレイ
+- `css/`
+  - 画面全体と盤面まわりのスタイル
 - `js/`
   - アプリ本体の JavaScript
 - `version.json`
@@ -41,6 +39,13 @@ LIFF、Firebase Firestore、PeerJS を使った 2 人対戦オセロです。
   - PeerJS ラッパー
 - `js/version.js`
   - クライアント表示用の版情報
+
+## CSS の責務
+
+- `css/styles.css`
+  - 全体レイアウト、トップバー、共通ボタン
+- `css/board.css`
+  - 盤面、プレイヤーカード、開始前 UI、結果オーバーレイ
 
 ## 設定箇所
 
