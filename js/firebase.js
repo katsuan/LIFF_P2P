@@ -3,7 +3,7 @@
 
   // このアプリは script 読み込み版の Firebase SDK を使うため、
   // ここでは Web アプリ設定値だけを保持します。
-  window.APP_CONFIG.liffId = window.APP_CONFIG.liffId || "2009933824-5iRGM5NO";
+  window.APP_CONFIG.liffId = window.APP_CONFIG.liffId || "2009927876-PcLT1IYA";
   window.APP_CONFIG.firebase = window.APP_CONFIG.firebase || {
     apiKey: "AIzaSyDsgzpMW7l9vI0o39OQ5RvBvBk-lh6oNs4",
     authDomain: "liff-p2p.firebaseapp.com",
